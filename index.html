@@ -1,0 +1,1257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ski Altitude Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@400..900&family=Sofia+Sans+Condensed:wght@400..900&family=Source+Serif+4:ital,wght@1,400;1,600&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #eef0ea;
+  --plate: #f6f7f2;
+  --ink: #232a26;
+  --slate: #4f5852;
+  --muted: #646d67;
+  --line: #c9cdc2;
+  --soft: #dfe2d9;
+  --tint: #e3eaf0;
+  --marker: #d9542b;
+  --high: #2f78c4;
+  --low: #7a4a22;
+  --contour: #8f6436;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: "Sofia Sans", system-ui, sans-serif; font-size: 13px; line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--high); outline-offset: 2px; }
+a { color: #3d5f7a; }
+.cn { font-family: "Sofia Sans Condensed", sans-serif; }
+
+/* Top bar */
+.bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
+.wordmark { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 24px; letter-spacing: -0.01em; margin-right: 12px; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--ink); background: var(--plate); white-space: nowrap; }
+button.pill { cursor: pointer; }
+.pill select { border: 0; background: transparent; font-weight: 700; padding: 0; max-width: 150px; }
+.pill input[type=number] { width: 52px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font-weight: 700; padding: 0 2px; }
+input[type=checkbox] { accent-color: var(--high); margin: 0; }
+.snowline { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.snowline label { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; }
+.snowline input { width: 140px; accent-color: var(--marker); }
+.snowline output { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 20px; color: var(--marker); min-width: 5.5ch; }
+.popwrap { position: relative; }
+.pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 220px; max-height: 360px; overflow: auto;
+  background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 8px 24px rgb(20 30 25 / .18); padding: 8px 10px;
+}
+.pop .acts { display: flex; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--soft); margin-bottom: 4px; }
+.pop .acts button { border: 0; background: none; padding: 0; color: #3d5f7a; cursor: pointer; text-decoration: underline; }
+.pop label { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
+.pop label:has(input:not(:checked)) { color: var(--muted); }
+.pop .n { color: var(--muted); }
+.find { position: relative; width: 190px; }
+.find input { width: 100%; padding: 5px 10px; border: 1px solid var(--ink); background: var(--plate); }
+.find ul {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60; margin: 0; padding: 4px 0; list-style: none;
+  background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 8px 24px rgb(20 30 25 / .18);
+}
+.find li { padding: 5px 10px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 1px 12px; }
+.find li small { grid-column: 1; color: var(--muted); font-size: 12px; }
+.find li .km { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--slate); }
+.find li[aria-selected="true"] { background: var(--tint); }
+.find .none { color: var(--muted); cursor: default; }
+
+/* Two columns */
+.split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 22px; padding: 10px 18px 16px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; }
+.colhead { font-family: "Sofia Sans Condensed", sans-serif; font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 -4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.colhead b { color: var(--ink); }
+.plate { position: relative; background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--ink); min-width: 0; }
+.phead { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px 4px; }
+.phead b { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 16px; white-space: nowrap; }
+.phead span { color: var(--muted); font-size: 12px; }
+svg { display: block; overflow: visible; }
+svg text { font-family: "Sofia Sans Condensed", sans-serif; font-size: 11px; fill: var(--slate); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 20; display: none; white-space: nowrap;
+  background: var(--ink); color: var(--plate); padding: 5px 8px; font-size: 12px;
+}
+.tip b { display: block; }
+
+/* Index */
+.indexplate { flex: 1; display: flex; flex-direction: column; min-height: 160px; }
+.tablewrap { flex: 1; overflow: auto; min-height: 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 4px 6px; text-align: right; white-space: nowrap; }
+th {
+  position: sticky; top: 0; z-index: 2; background: var(--plate); border-bottom: 1px solid var(--ink);
+  font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; color: var(--slate); cursor: pointer; user-select: none;
+}
+th[aria-sort]::after { content: "▾"; margin-left: 3px; }
+th[aria-sort="ascending"]::after { content: "▴"; }
+th.snowcol { color: var(--ink); box-shadow: inset 0 -3px 0 var(--marker); }
+th.nosort { cursor: default; }
+td { border-bottom: 1px solid var(--soft); }
+.l { text-align: left; }
+td.rank { color: var(--muted); }
+td.name { font-weight: 700; white-space: normal; overflow-wrap: anywhere; min-width: 120px; }
+td .cc { color: var(--muted); font-weight: 400; font-size: 12px; }
+td.strong { font-weight: 800; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: #fbfbf8; }
+tbody tr.sel td { background: var(--tint); }
+tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
+.empty { padding: 24px 14px; color: var(--slate); }
+.credit { padding: 6px 12px; border-top: 1px solid var(--soft); color: var(--muted); font-size: 11px; }
+
+/* Selected domain */
+.titlecard { display: flex; align-items: flex-end; gap: 20px; padding: 10px 16px; }
+.titlecard .where { font-size: 12px; color: var(--slate); }
+.titlecard h1 { margin: 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 30px; line-height: 1; }
+.stats { display: flex; margin-left: auto; }
+.stats div { padding: 0 12px; border-left: 1px solid var(--soft); }
+.stats div:first-child { border-left: 0; }
+.stats b { display: block; font-family: "Sofia Sans Condensed", sans-serif; font-size: 22px; line-height: 1.1; white-space: nowrap; }
+.stats span { font-size: 12px; color: var(--slate); white-space: nowrap; }
+.stats .above b { color: var(--high); }
+.mapplate { flex: 1; display: flex; flex-direction: column; min-height: 260px; }
+.mapplate .phead { border-bottom: 1px solid var(--ink); padding-bottom: 6px; }
+.legend { display: inline-flex; gap: 12px; align-items: center; }
+.legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 4px; }
+.iconbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding: 3px 10px; border: 1px solid var(--ink); background: var(--plate); cursor: pointer; }
+#map { flex: 1; min-height: 0; }
+.plate.expanded {
+  position: fixed; inset: 28px; z-index: 50; display: flex; flex-direction: column; max-height: none;
+  box-shadow: 0 0 0 5px var(--plate), 0 0 0 6px var(--ink), 0 24px 60px rgb(0 0 0 / .35);
+}
+.plate.expanded svg { margin: 0 auto; }
+.seg + .iconbtn { margin-left: 8px; }
+/* Snow line control repeated in overlays; it mirrors the top bar's slider. */
+.modalsnow { display: none; align-items: center; gap: 8px; margin-left: auto; align-self: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; white-space: nowrap; }
+.expanded .modalsnow, .dlg .modalsnow { display: inline-flex; }
+.modalsnow input { width: 180px; accent-color: var(--marker); }
+.modalsnow output { color: var(--marker); font-weight: 900; font-size: 17px; min-width: 5.5ch; }
+.seg ~ .modalsnow, .modalsnow + .iconbtn, .modalsnow + .seg { margin-left: 8px; }
+.expandbtn span { display: none; }
+.expanded .expandbtn span { display: inline; }
+#scatter { touch-action: none; user-select: none; }
+.lifttoggle { display: inline-flex; align-items: center; gap: 5px; align-self: center; font-size: 12px; white-space: nowrap; cursor: pointer; }
+.resetbtn { padding: 3px 7px; }
+.resetbtn:disabled { opacity: .35; cursor: default; }
+.resetbtn ~ .iconbtn, .resetbtn ~ .modalsnow { margin-left: 8px; }
+.phead .iconbtn { align-self: center; }
+#backdrop { position: fixed; inset: 0; z-index: 45; background: rgb(28 33 30 / .6); }
+.maplibregl-popup-content { font-family: "Sofia Sans", sans-serif; font-size: 12px; padding: 6px 9px; border-radius: 0; border: 1px solid var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--ink); margin-left: auto; align-self: center; }
+.seg { flex-shrink: 0; }
+.seg button { white-space: nowrap; border: 0; background: var(--plate); padding: 2px 10px; cursor: pointer; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--plate); }
+.gradekey { display: inline-flex; gap: 10px; flex-wrap: wrap; }
+.gradekey i { display: inline-block; width: 12px; height: 10px; vertical-align: -1px; margin-right: 5px; opacity: .6; border: 1px solid rgb(0 0 0 / .25); }
+.gradetoggle { border: 1px solid var(--line); background: var(--plate); padding: 0 6px; cursor: pointer; font-size: 12px; color: var(--ink); }
+.gradetoggle[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; border-style: dashed; }
+.gradetoggle[aria-pressed="false"] i { opacity: .15; }
+.dlg { width: min(820px, calc(100vw - 32px)); padding: 0; color: var(--ink); }
+.dlg::backdrop { background: rgb(28 33 30 / .6); }
+.dlg .phead { border-bottom: 1px solid var(--ink); padding-bottom: 7px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink) !important; font-size: 12px; }
+.chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.rstats { display: flex; flex-wrap: wrap; padding: 10px 12px 2px; }
+.rstats div { padding: 0 14px; border-left: 1px solid var(--soft); }
+.rstats div:first-child { padding-left: 0; border-left: 0; }
+.rstats b { display: block; font-family: "Sofia Sans Condensed", sans-serif; font-size: 20px; line-height: 1.1; }
+.rstats span { font-size: 12px; color: var(--slate); }
+.dlg .note { margin: 0; padding: 4px 12px 10px; color: var(--muted); font-size: 11px; }
+.about { width: min(720px, calc(100vw - 32px)); }
+.aboutbody { padding: 6px 20px 18px; max-height: min(72vh, 680px); overflow: auto; font-size: 14px; line-height: 1.55; }
+.aboutbody p { margin: 0 0 10px; max-width: 68ch; }
+.aboutbody h3 { margin: 16px 0 4px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 17px; }
+#aboutBtn { cursor: pointer; font-weight: 700; }
+#hist { touch-action: none; }
+#hist .handle { cursor: ns-resize; }
+
+@media (max-width: 1100px) {
+  body { display: block; height: auto; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .indexplate { max-height: 70vh; }
+  .mapplate { height: 60vh; flex: none; }
+  .snowline { margin-left: 0; }
+}
+@media (max-width: 640px) {
+  .titlecard { flex-wrap: wrap; }
+  .stats { margin-left: 0; flex-wrap: wrap; gap: 6px 0; }
+  .find { width: 100%; }
+  .snowline input { width: 140px; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="wordmark">Ski Altitude Explorer</div>
+  <label class="pill">Region <select id="region"></select></label>
+  <div class="popwrap">
+    <button type="button" class="pill" id="ccBtn" aria-expanded="false" aria-controls="ccPop">All countries</button>
+    <div class="pop" id="ccPop" hidden>
+      <div class="acts"><button type="button" id="ccAll">All</button><button type="button" id="ccNone">None</button></div>
+      <div id="ccList"></div>
+    </div>
+  </div>
+  <label class="pill">At least <input id="minKm" type="number" min="0" step="10" value="30"> km</label>
+  <label class="pill"><input id="domains" type="checkbox" checked> Linked domains only</label>
+  <div class="snowline">
+    <label for="thr">Snow line</label>
+    <input id="thr" type="range" min="500" max="3500" step="100" value="2000">
+    <output id="thrOut" for="thr">2,000 m</output>
+  </div>
+  <div class="find">
+    <input id="find" type="search" placeholder="Find a domain or resort" autocomplete="off"
+      role="combobox" aria-expanded="false" aria-controls="findList" aria-autocomplete="list" aria-label="Find a domain or resort">
+    <ul id="findList" role="listbox" hidden></ul>
+  </div>
+  <button type="button" class="pill" id="aboutBtn" aria-haspopup="dialog">About</button>
+</header>
+
+<main class="split">
+  <div class="col">
+    <div class="colhead" id="filterSummary">Loading…</div>
+    <section class="plate" id="scatterCard">
+      <div class="phead"><b>Size against high piste</b><span class="gradekey" id="scatterGrades"></span>
+        <button type="button" class="iconbtn resetbtn" id="scatterReset" disabled title="Reset view" aria-label="Reset plot view">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.5v3h3"/></svg></button>
+        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <button type="button" class="iconbtn expandbtn" data-what="plot" aria-label="Expand plot">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
+        </button></div>
+      <svg id="scatter" role="img" aria-label="Total piste km against km above the snow line"></svg>
+      <div class="tip" id="scatterTip"></div>
+    </section>
+    <section class="plate indexplate">
+      <div class="phead"><b>Index</b><span id="count"></span>
+        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <button type="button" class="iconbtn expandbtn" data-what="index" aria-label="Expand index">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
+        </button></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th data-k="rank" class="l">#</th>
+            <th data-k="label" class="l">Domain</th>
+            <th data-k="fkm">Total km</th>
+            <th data-k="above" class="snowcol" aria-sort="descending">Above <span class="thrLbl">2,000</span> m</th>
+            <th data-k="pct">Share</th>
+            <th class="l nosort">Profile</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty" hidden>No domains match. Choose a wider region, tick more countries or lower the minimum size.</div>
+      </div>
+      <div class="credit">Data © <a href="https://openskimap.org">OpenSkiMap</a> and <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL. <a href="#" id="aboutLink">How this is measured</a></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <div class="colhead" id="crumb"></div>
+    <section class="plate titlecard">
+      <div>
+        <div class="where" id="dWhere"></div>
+        <h1 id="dName">Loading…</h1>
+      </div>
+      <div class="stats">
+        <div class="above"><b id="sAbove">–</b><span>above <span class="thrLbl">2,000</span> m</span></div>
+        <div><b id="sPct">–</b><span>of piste</span></div>
+        <div><b id="sKm">–</b><span>measured</span></div>
+        <div><b id="sMed">–</b><span>median</span></div>
+        <div><b id="sLift">–</b><span>top lift</span></div>
+      </div>
+    </section>
+    <section class="plate mapplate" id="mapPlate">
+      <div class="phead">
+        <b>Piste map</b>
+        <span class="legend"><span><i style="background:#2e9e4f"></i>green</span><span><i style="background:#2f6fd6"></i>blue</span><span><i style="background:#d23a32"></i>red</span><span><i style="background:#1d1f1e"></i>black</span><span>faded below the snow line; click a piste for its profile</span></span>
+        <label class="lifttoggle"><input type="checkbox" id="showLifts" checked> Lifts</label>
+        <button type="button" class="iconbtn resetbtn" id="mapReset" disabled title="Reset view" aria-label="Reset map view">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.5v3h3"/></svg></button>
+        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <button type="button" class="iconbtn expandbtn" data-what="map" aria-label="Expand map">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
+        </button>
+      </div>
+      <div id="map"></div>
+    </section>
+    <section class="plate" id="histCard">
+      <div class="phead"><b>Piste km by altitude</b><span id="histNote">Each bar is 100 m of altitude. Drag the orange line to move the snow line.</span>
+        <div class="seg" role="group" aria-label="Histogram view"><button type="button" data-mode="total" aria-pressed="true">Total</button><button type="button" data-mode="grade" aria-pressed="false">By grade</button></div>
+        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <button type="button" class="iconbtn expandbtn" data-what="altitude chart" aria-label="Expand altitude chart">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
+        </button>
+      </div>
+      <svg id="hist" role="img" aria-label="Piste km per 100 m altitude band"></svg>
+      <div class="tip" id="histTip"></div>
+    </section>
+  </div>
+</main>
+<div id="backdrop" hidden></div>
+<dialog id="runDlg" class="plate dlg" aria-labelledby="rName">
+  <div class="phead"><b id="rName"></b><span class="chip" id="rGrade"></span>
+    <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+    <button type="button" class="iconbtn" id="rClose">Close</button></div>
+  <div class="rstats" id="rStats"></div>
+  <svg id="rProfile" role="img" aria-label="Elevation and gradient along the piste"></svg>
+  <p class="note">Distances are horizontal, from the mapped run line; gradients are measured over 50 m steps.</p>
+</dialog>
+<dialog id="aboutDlg" class="plate dlg about" aria-labelledby="aboutTitle">
+  <div class="phead"><b id="aboutTitle">About Ski Altitude Explorer</b>
+    <button type="button" class="iconbtn" id="aboutClose">Close</button></div>
+  <div class="aboutbody">
+    <p>Ski domains ranked by how much of their piste sits above a snow line you choose, to find places that are both big and likely to have snow early and late in the season.</p>
+
+    <h3>How it's measured</h3>
+    <p>Every downhill piste is mapped as a line with an altitude at each point. We split each line into short segments, measure each one's horizontal length, and add it to the 100 m altitude band at its midpoint. A domain's total is the sum of its bands, and "above the snow line" is the sum of the bands above it.</p>
+    <p>Only operating downhill pistes count. Ski routes, freeride and backcountry runs are left out, and so are pistes mapped as areas rather than lines, because they have no length to measure. Grades follow the European colours: OpenSkiMap's novice is green, easy blue, intermediate red, and advanced or expert black.</p>
+
+    <h3>Why sizes differ from resort brochures</h3>
+    <p>Figures here are usually lower than a resort's published piste km, sometimes by a lot. Resorts measure in different ways: some count ski routes and itineraries, the length along the slope rather than on the map, wide pistes as several runs, or the whole of a lift pass that covers unlinked valleys. Our figure is the horizontal length of the pistes mapped in OpenStreetMap, measured the same way everywhere, so it is best used to compare domains with each other. Where a domain looks too small, its pistes may simply not all be mapped yet.</p>
+
+    <h3>Linked domains</h3>
+    <p>Domains come from OpenSkiMap, which groups resorts into linked areas such as Les Trois Vallées. With "Linked domains only" on, resorts inside a bigger domain are counted as part of it, and lift-pass networks of unlinked valleys, such as Dolomiti Superski, are hidden. A few linked domains aren't grouped in the data yet, so their resorts appear separately.</p>
+
+    <h3>The snow line</h3>
+    <p>The snow line is a single altitude. It doesn't account for which way slopes face, latitude, glaciers or snowmaking, so treat it as a guide to altitude rather than a snow forecast.</p>
+
+    <h3>Fixing or adding data</h3>
+    <p>All pistes and lifts come from <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a>, via <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a>. If a piste is missing, misnamed or has the wrong grade, you can fix it in OpenStreetMap: the <a href="https://wiki.openstreetmap.org/wiki/Piste_Maps" target="_blank" rel="noopener">piste mapping guide</a> explains how pistes and lifts are tagged, and <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a> explains how its ski areas are built and how to report problems. Changes reach OpenSkiMap within about a day, and this site picks them up at its weekly rebuild.</p>
+
+    <h3>Data and credits</h3>
+    <p>Piste, lift and ski area data © <a href="https://openskimap.org" target="_blank" rel="noopener">OpenSkiMap</a> and <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>, available under the Open Database Licence (ODbL). Map tiles from <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> and OpenMapTiles; terrain from <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener">AWS Terrain Tiles</a>.<span id="built"></span></p>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+const fmt = n => Math.round(n).toLocaleString("en-GB");
+const niceMax = v => { const p = 10 ** Math.floor(Math.log10(v || 1)); return Math.ceil(v / p) * p; };
+const ticks = (max, n = 5) => { const step = niceMax(max / n); const t = []; for (let v = 0; v <= max + 1e-9; v += step) t.push(v); return t; };
+
+// Relief-map altitude colours, shared by the map, dots, bars and profile strips.
+const HYPS = [[1000, "#bdd1a0"], [1400, "#d6daa3"], [1800, "#e6d39c"], [2200, "#d7b383"], [2600, "#c09572"], [3000, "#9f8a80"], [Infinity, "#edf2f5"]];
+const hypsIndex = z => HYPS.findIndex(([lim]) => z < lim);
+const hyps = z => HYPS[hypsIndex(z)][1];
+const HIGH = "#2f78c4", LOW = "#7a4a22";
+
+// European piste grades. OpenSkiMap's difficulty values map onto them; anything else is ungraded.
+const GRADES = [
+  { name: "Green", color: "#2e9e4f" }, { name: "Blue", color: "#2f6fd6" }, { name: "Red", color: "#d23a32" },
+  { name: "Black", color: "#1d1f1e" }, { name: "Ungraded", color: "#8a8f8c" },
+];
+const gradeIndex = d => ({ novice: 0, easy: 1, intermediate: 2, advanced: 3, expert: 3, extreme: 3 })[d] ?? 4;
+
+// Horizontal distance in metres between two [lon, lat] points.
+const distM = (a, b) => {
+  const r = Math.PI / 180, dLat = (b[1] - a[1]) * r, dLon = (b[0] - a[0]) * r;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLon / 2) ** 2;
+  return 12742000 * Math.asin(Math.sqrt(s));
+};
+
+let DATA, BIN, REGIONS, COUNTRY_NAMES, selectedId = null, pinned = false, sortKey = "above", sortDir = -1, histMode = "total";
+const gradesOff = new Set(); // grade indexes hidden from the stacked by-grade view
+const unchecked = new Set(); // country codes switched off in the current region
+
+fetch("data/ski_area_stats.json", { cache: "no-cache" }).then(r => r.json()).then(d => {
+  DATA = d.areas; BIN = d.bin; REGIONS = d.regions; COUNTRY_NAMES = d.countries;
+  if (d.built) $("#built").textContent = ` Data last rebuilt ${d.built}.`;
+  for (const a of DATA) { a.cc = a.countries.join(", "); a.label = a.name || "(unnamed)"; }
+  buildRegionSelect();
+  ["thr", "minKm", "domains"].forEach(id => $("#" + id).addEventListener("input", render));
+  $("#region").addEventListener("input", () => { unchecked.clear(); pinned = false; render(); });
+  $("#ccAll").addEventListener("click", () => { unchecked.clear(); render(); });
+  $("#ccNone").addEventListener("click", () => { document.querySelectorAll("#ccList input").forEach(i => unchecked.add(i.value)); render(); });
+  $("#ccBtn").addEventListener("click", e => { e.stopPropagation(); togglePop(); });
+  document.addEventListener("click", e => { if (!e.target.closest(".popwrap")) togglePop(false); });
+  document.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    sortDir = sortKey === k ? -sortDir : (["label", "cc", "rank"].includes(k) ? 1 : -1);
+    sortKey = k; render();
+  }));
+  setupFind();
+  setupExpand();
+  document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+    histMode = b.dataset.mode;
+    document.querySelectorAll(".seg button").forEach(o => o.setAttribute("aria-pressed", o === b));
+    render();
+  }));
+  $("#scatterReset").addEventListener("click", () => { sView = null; drawScatter(...sLast); });
+  $("#mapReset").addEventListener("click", resetMapView);
+  $("#showLifts").addEventListener("change", e => {
+    if (mapReady) for (const id of LIFT_LAYERS) map.setLayoutProperty(id, "visibility", e.target.checked ? "visible" : "none");
+  });
+  document.querySelectorAll(".modalsnow input").forEach(inp => inp.addEventListener("input", () => {
+    $("#thr").value = inp.value;
+    render();
+    if ($("#runDlg").open && currentRun) openRun(currentRun);
+  }));
+  $("#rClose").addEventListener("click", () => $("#runDlg").close());
+  const openAbout = e => { e?.preventDefault(); $("#aboutDlg").showModal(); };
+  $("#aboutBtn").addEventListener("click", openAbout);
+  $("#aboutLink").addEventListener("click", openAbout);
+  $("#aboutClose").addEventListener("click", () => $("#aboutDlg").close());
+  $("#aboutDlg").addEventListener("click", e => { if (e.target === $("#aboutDlg")) $("#aboutDlg").close(); });
+  $("#runDlg").addEventListener("click", e => { if (e.target === $("#runDlg")) $("#runDlg").close(); });
+  let resizeTimer;
+  window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 120); });
+  render();
+  initMap();
+}).catch(() => {
+  $("#dName").textContent = "Data didn't load";
+  $("#filterSummary").textContent = "Serve this folder over HTTP (python -m http.server), then reload.";
+});
+
+function togglePop(open = $("#ccPop").hidden) {
+  $("#ccPop").hidden = !open;
+  $("#ccBtn").setAttribute("aria-expanded", open);
+}
+
+// Option values: "*" everywhere, "g:<group>" a whole group, otherwise a region name.
+function buildRegionSelect() {
+  const sel = $("#region");
+  sel.appendChild(new Option("Everywhere", "*"));
+  const groups = {};
+  for (const [r, g] of Object.entries(REGIONS)) (groups[g] ??= []).push(r);
+  for (const [g, rs] of Object.entries(groups)) {
+    if (rs.length === 1) { sel.appendChild(new Option(rs[0], rs[0])); continue; }
+    const og = document.createElement("optgroup"); og.label = g;
+    og.appendChild(new Option(`All ${g}`, "g:" + g));
+    for (const r of rs) og.appendChild(new Option(r, r));
+    sel.appendChild(og);
+  }
+  sel.value = "Alps";
+}
+
+function inRegion(a, sel) {
+  if (sel === "*") return true;
+  if (sel.startsWith("g:")) return REGIONS[a.region] === sel.slice(2);
+  return a.region === sel;
+}
+
+function drawCountries(pool) {
+  const counts = {};
+  for (const a of pool) for (const c of a.countries) counts[c] = (counts[c] || 0) + 1;
+  const list = $("#ccList"); list.textContent = "";
+  const entries = Object.entries(counts).sort((x, y) => y[1] - x[1]);
+  for (const [c, n] of entries) {
+    const lab = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.value = c; cb.checked = !unchecked.has(c);
+    cb.addEventListener("change", () => { cb.checked ? unchecked.delete(c) : unchecked.add(c); render(); });
+    const name = document.createElement("span"); name.textContent = COUNTRY_NAMES[c] || c;
+    const n_ = document.createElement("span"); n_.className = "n"; n_.textContent = n;
+    lab.append(cb, name, n_);
+    list.appendChild(lab);
+  }
+  const on = entries.filter(([c]) => !unchecked.has(c)).length;
+  $("#ccBtn").textContent = on === entries.length ? "All countries" : `${on} of ${entries.length} countries`;
+  return on === entries.length ? "all countries" : `${on} of ${entries.length} countries`;
+}
+
+function current() {
+  const thr = +$("#thr").value, region = $("#region").value, minKm = +$("#minKm").value || 0;
+  const domains = $("#domains").checked;
+  const pool = DATA.filter(a => inRegion(a, region) && !(domains && (a.parent || a.pass_network)) && a.km >= minKm);
+  const ccText = drawCountries(pool);
+  // With grades switched off, the left column counts only the enabled grades' piste.
+  const rows = [];
+  for (const a of pool) {
+    if (!a.countries.some(c => !unchecked.has(c))) continue;
+    let above = 0, km = 0;
+    if (!gradesOff.size) {
+      km = a.km;
+      for (const [z, v] of Object.entries(a.hist)) if (+z >= thr) above += v;
+    } else {
+      for (const [g, series] of Object.entries(a.gh)) {
+        if (gradesOff.has(+g)) continue;
+        for (const [z, v] of Object.entries(series)) { km += v; if (+z >= thr) above += v; }
+      }
+      if (km < 0.1) continue;
+    }
+    a.fkm = km; a.above = above; a.pct = km ? 100 * above / km : 0;
+    rows.push(a);
+  }
+  [...rows].sort((a, b) => b.above - a.above).forEach((a, i) => a.rank = i + 1);
+  const regionName = $("#region").selectedOptions[0].textContent;
+  $("#filterSummary").innerHTML = "";
+  const b = document.createElement("b"); b.textContent = `${rows.length} domains`;
+  const gradeText = gradesOff.size ? `, counting ${GRADES.filter((_, i) => !gradesOff.has(i)).map(g => g.name.toLowerCase()).join(", ") || "no"} pistes` : "";
+  $("#filterSummary").append(b, ` match your filters: ${regionName}, ${ccText}, at least ${fmt(minKm)} km${domains ? ", linked domains" : ""}${gradeText}`);
+  return { thr, rows };
+}
+
+function render() {
+  const { thr, rows } = current();
+  $("#thrOut").textContent = fmt(thr) + " m";
+  document.querySelectorAll(".modalsnow").forEach(l => { l.querySelector("input").value = thr; l.querySelector("output").textContent = fmt(thr) + " m"; });
+  document.querySelectorAll(".thrLbl").forEach(s => s.textContent = fmt(thr));
+  const shown = [...rows].sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    return typeof x === "string" ? sortDir * x.localeCompare(y) : sortDir * (x - y);
+  });
+  document.querySelectorAll("th[data-k]").forEach(th => {
+    if (th.dataset.k === sortKey) th.setAttribute("aria-sort", sortDir < 0 ? "descending" : "ascending");
+    else th.removeAttribute("aria-sort");
+  });
+  if (rows.length && !pinned && !rows.some(a => a.id === selectedId)) selectedId = [...rows].sort((a, b) => b.above - a.above)[0].id;
+  const sel = DATA.find(a => a.id === selectedId);
+  drawTable(shown);
+  gradeToggles($("#scatterGrades"));
+  drawScatter(rows, thr);
+  drawDetail(sel, thr);
+  updateMap(rows, sel, thr);
+}
+
+function select(id) { selectedId = id; pinned = false; render(); }
+
+function profileStrip(a) {
+  const shares = new Array(HYPS.length).fill(0);
+  for (const [z, km] of Object.entries(a.hist)) shares[hypsIndex(+z + BIN / 2)] += km;
+  const svg = el("svg", { width: 72, height: 9, viewBox: "0 0 72 9", "aria-hidden": "true" });
+  let x = 0;
+  shares.forEach((km, i) => {
+    if (!km) return;
+    const w = 72 * km / a.km;
+    el("rect", { x, y: 0, width: w, height: 9, fill: HYPS[i][1] }, svg);
+    x += w;
+  });
+  return svg;
+}
+
+function drawTable(rows) {
+  const tb = $("#rows"); tb.textContent = "";
+  for (const a of rows.slice(0, 400)) {
+    const tr = document.createElement("tr");
+    if (a.id === selectedId) tr.className = "sel";
+    const td = (text, cls) => { const c = document.createElement("td"); c.textContent = text; if (cls) c.className = cls; tr.appendChild(c); return c; };
+    td(a.rank, "rank l");
+    const name = td(a.label, "name l");
+    const cc = document.createElement("span"); cc.className = "cc"; cc.textContent = " " + a.cc;
+    name.appendChild(cc);
+    td(fmt(a.fkm));
+    td(fmt(a.above), "strong");
+    td(Math.round(a.pct) + "%");
+    td("", "l").appendChild(profileStrip(a));
+    tr.tabIndex = 0;
+    tr.addEventListener("click", () => select(a.id));
+    tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(a.id); } });
+    tb.appendChild(tr);
+  }
+  $("#count").textContent = `Ranked by piste above the snow line${rows.length > 400 ? ", top 400 listed" : ""}`;
+  $("#empty").hidden = rows.length > 0;
+}
+
+function placeTip(tip, card, ev) {
+  const r = card.getBoundingClientRect();
+  tip.style.display = "block";
+  tip.style.left = Math.min(ev.clientX - r.left + 12, r.width - tip.offsetWidth - 8) + "px";
+  tip.style.top = (ev.clientY - r.top + 14) + "px";
+}
+
+// Zoom state for the size-against-high-piste plot: a square window {x0, y0, s} in km, or null for all.
+let sView = null, sDrag = null, sLast = null;
+const tickRange = (lo, hi, n) => {
+  const step = niceMax((hi - lo) / n), out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(v);
+  return out;
+};
+
+function drawScatter(rows, thr) {
+  sLast = [rows, thr];
+  const svg = $("#scatter"); svg.textContent = "";
+  // A square plot on one km scale, so the diagonal is a true 45°. It is capped at 370 px tall
+  // (the index below keeps its room) unless the plate is expanded, and centred.
+  const card = $("#scatterCard"), expanded = card.classList.contains("expanded");
+  const W = Math.max(300, card.clientWidth - 2), H = expanded ? card.clientHeight - 44 : 370, m = { t: 22, r: 14, b: 30, l: 42 };
+  const full = niceMax(Math.max(10, ...rows.map(a => a.fkm)));
+  if (sView && sView.s >= full) sView = null;
+  if (sView) {
+    sView.x0 = Math.max(0, Math.min(full - sView.s, sView.x0));
+    sView.y0 = Math.max(0, Math.min(full - sView.s, sView.y0));
+  }
+  const v = sView || { x0: 0, y0: 0, s: full };
+  const k = Math.min(W - m.l - m.r, H - m.t - m.b) / v.s;
+  const side = k * v.s, ox = m.l + (W - m.l - m.r - side) / 2;
+  const x = val => ox + k * (val - v.x0), y = val => m.t + side - k * (val - v.y0);
+  svg.setAttribute("viewBox", `0 0 ${W} ${m.t + side + m.b}`);
+  svg.setAttribute("width", W); svg.setAttribute("height", m.t + side + m.b);
+  $("#scatterReset").disabled = !sView;
+
+  const defs = el("defs", {}, svg), clip = el("clipPath", { id: "scatterClip" }, defs);
+  el("rect", { x: ox, y: m.t, width: side, height: side }, clip);
+  el("rect", { x: ox, y: m.t, width: side, height: side, fill: "#fbfbf8" }, svg);
+  const plot = el("g", { "clip-path": "url(#scatterClip)" }, svg);
+  // Above the diagonal a domain would have more high piste than piste, so that half is shaded.
+  const big = full * 2;
+  el("path", { d: `M${x(0)},${y(0)} L${x(0)},${y(big)} L${x(big)},${y(big)} Z`, fill: "#ecede6" }, plot);
+  if (!sView) el("text", { x: x(full * 0.06), y: y(full * 0.9), style: "fill:var(--muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:10.5px" }, plot)
+    .textContent = "no domain can sit here";
+  for (const t of tickRange(v.x0, v.x0 + v.s, 4)) {
+    el("line", { x1: x(t), x2: x(t), y1: m.t, y2: m.t + side, stroke: "var(--soft)" }, plot);
+    el("text", { x: x(t), y: m.t + side + 14, "text-anchor": "middle" }, svg).textContent = fmt(t);
+  }
+  for (const t of tickRange(v.y0, v.y0 + v.s, 4)) {
+    el("line", { x1: ox, x2: ox + side, y1: y(t), y2: y(t), stroke: "var(--soft)" }, plot);
+    el("text", { x: ox - 6, y: y(t) + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
+  }
+  el("text", { x: ox + side, y: m.t + side + 27, "text-anchor": "end" }, svg).textContent = "total piste, km";
+  el("text", { x: ox, y: m.t + side + 27, style: "fill:var(--muted)" }, svg).textContent = "scroll to zoom, drag to pan";
+  el("text", { x: ox, y: m.t - 8 }, svg).textContent = `km above ${fmt(thr)} m`;
+
+  // Share contours, labelled like a map's contour lines where they leave the window.
+  const right = v.x0 + v.s, top = v.y0 + v.s;
+  for (const p of [0.25, 0.5, 0.75, 1]) {
+    el("line", { x1: x(0), y1: y(0), x2: x(big), y2: y(big * p), stroke: "var(--contour)", "stroke-dasharray": p === 1 ? "" : "1 3", opacity: p === 1 ? 0.6 : 1 }, plot);
+    let lx, ly, dy;
+    if (p * right <= top && p * right >= v.y0) { lx = right; ly = p * right; dy = -4; }
+    else if (top / p <= right && top / p >= v.x0) { lx = top / p; ly = top; dy = 12; }
+    else continue;
+    el("text", { x: x(lx) - 4, y: y(ly) + dy, "text-anchor": "end",
+      style: "fill:var(--contour);font-family:'Source Serif 4',serif;font-style:italic;font-size:10.5px" }, plot)
+      .textContent = p === 1 ? "all above" : `${p * 100}%`;
+  }
+
+  const inView = a => a.fkm >= v.x0 && a.fkm <= right && a.above >= v.y0 && a.above <= top;
+  const pts = rows.map(a => ({ a, cx: x(a.fkm), cy: y(a.above) }));
+  for (const p of [...pts].sort((u, w) => w.a.fkm - u.a.fkm)) {
+    el("circle", { cx: p.cx, cy: p.cy, r: p.a.fkm >= 100 ? 4.5 : 3.2, fill: hyps(p.a.median_alt), stroke: "#2a2f2b", "stroke-width": 0.6 }, plot);
+  }
+  const placed = [];
+  for (const a of rows.filter(inView).sort((p, q) => q.above - p.above).slice(0, 8)) {
+    const name = a.label.length > 24 ? a.label.slice(0, 23) + "…" : a.label;
+    const left = x(a.fkm) > ox + side - 150, w = name.length * 5.4;
+    const x0 = left ? x(a.fkm) - 8 - w : x(a.fkm) + 8, y0 = y(a.above) - 7;
+    if (placed.some(b => x0 < b.x + b.w && b.x < x0 + w && Math.abs(y0 - b.y) < 13)) continue;
+    placed.push({ x: x0, y: y0, w });
+    const t = el("text", { x: left ? x(a.fkm) - 8 : x(a.fkm) + 8, y: y(a.above) + 4, style: "fill:var(--ink);font-weight:700" }, plot);
+    if (left) t.setAttribute("text-anchor", "end");
+    t.textContent = name;
+  }
+  const sel = rows.find(a => a.id === selectedId);
+  if (sel) el("circle", { cx: x(sel.fkm), cy: y(sel.above), r: 9, fill: "none", stroke: "var(--marker)", "stroke-width": 2 }, plot);
+
+  const tip = $("#scatterTip"), ring = el("circle", { r: 7, fill: "none", stroke: "var(--ink)", "stroke-width": 1.5, visibility: "hidden" }, svg);
+  const toSvg = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
+  const nearest = ev => {
+    const { x: px, y: py } = toSvg(ev);
+    let best = null, bd = 12 ** 2;
+    for (const q of pts) { if (!inView(q.a)) continue; const d = (q.cx - px) ** 2 + (q.cy - py) ** 2; if (d < bd) { bd = d; best = q; } }
+    return best;
+  };
+  const redraw = () => drawScatter(...sLast);
+  svg.onmousemove = ev => {
+    if (sDrag) return;
+    const q = nearest(ev);
+    if (!q) { tip.style.display = "none"; ring.setAttribute("visibility", "hidden"); svg.style.cursor = "grab"; return; }
+    ring.setAttribute("cx", q.cx); ring.setAttribute("cy", q.cy); ring.setAttribute("visibility", "visible");
+    svg.style.cursor = "pointer";
+    tip.innerHTML = "";
+    const b = document.createElement("b"); b.textContent = q.a.label;
+    tip.append(b, `${fmt(q.a.fkm)} km, ${fmt(q.a.above)} above ${fmt(thr)} m (${Math.round(q.a.pct)}%)`);
+    placeTip(tip, card, ev);
+  };
+  svg.onmouseleave = () => { tip.style.display = "none"; ring.setAttribute("visibility", "hidden"); };
+  // Scroll zooms around the cursor, keeping the window square; a click without dragging selects.
+  svg.onwheel = ev => {
+    ev.preventDefault();
+    const p = toSvg(ev), cx = v.x0 + (p.x - ox) / k, cy = v.y0 + (m.t + side - p.y) / k;
+    const s = Math.max(full / 50, Math.min(full, v.s * (ev.deltaY > 0 ? 1.25 : 0.8)));
+    sView = s >= full ? null : { x0: cx - (cx - v.x0) * s / v.s, y0: cy - (cy - v.y0) * s / v.s, s };
+    tip.style.display = "none";
+    redraw();
+  };
+  svg.onpointerdown = ev => {
+    sDrag = { px: ev.clientX, py: ev.clientY, x0: v.x0, y0: v.y0, moved: false };
+    svg.setPointerCapture(ev.pointerId);
+  };
+  svg.onpointermove = ev => {
+    if (!sDrag) return;
+    const dx = ev.clientX - sDrag.px, dy = ev.clientY - sDrag.py;
+    if (!sDrag.moved && Math.hypot(dx, dy) < 4) return;
+    sDrag.moved = true;
+    if (!sView) return; // nothing to pan at full extent
+    const scale = svg.getScreenCTM().a * k;
+    sView = { x0: sDrag.x0 - dx / scale, y0: sDrag.y0 + dy / scale, s: v.s };
+    redraw();
+  };
+  svg.onpointerup = ev => {
+    const d = sDrag; sDrag = null;
+    svg.releasePointerCapture?.(ev.pointerId);
+    if (d && !d.moved) { const q = nearest(ev); if (q) select(q.a.id); }
+  };
+  svg.ondblclick = () => { sView = null; redraw(); };
+}
+
+function drawDetail(a, thr) {
+  const svg = $("#hist"); svg.textContent = "";
+  if (!a) {
+    $("#dName").textContent = "No domain selected";
+    $("#dWhere").textContent = "Pick one from the plot or the index.";
+    $("#crumb").textContent = "";
+    return;
+  }
+  const above = Object.entries(a.hist).reduce((s, [z, km]) => s + (+z >= thr ? km : 0), 0);
+  const parent = a.parent && DATA.find(p => p.id === a.parent);
+  $("#dName").textContent = a.label;
+  $("#dWhere").textContent = [a.countries.map(c => COUNTRY_NAMES[c] || c).join(", "), parent && `part of ${parent.label}`].filter(Boolean).join(", ");
+  $("#crumb").textContent = `${a.region} › selected domain`;
+  $("#sAbove").textContent = fmt(above) + " km";
+  $("#sPct").textContent = Math.round(100 * above / a.km) + "%";
+  $("#sKm").textContent = fmt(a.km) + " km";
+  $("#sMed").textContent = fmt(a.median_alt) + " m";
+  $("#sLift").textContent = a.lift_top ? fmt(a.lift_top) + " m" : "–";
+
+  const zs = Object.keys(a.hist).map(Number);
+  const zMin = Math.min(...zs), zMax = Math.max(...zs);
+  const bands = []; for (let z = zMax; z >= zMin; z -= BIN) bands.push(z);
+  const W = Math.max(320, $("#histCard").clientWidth - 2);
+  const card = $("#histCard"), H = card.classList.contains("expanded") ? card.clientHeight - 44
+    : Math.max(150, Math.min(250, bands.length * 9 + 40)), m = { t: 6, r: 130, b: 26, l: 58 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const bh = ih / bands.length, gap = Math.min(2, bh * 0.2);
+  const kMax = niceMax(Math.max(...Object.values(a.hist)));
+  const x = v => m.l + iw * v / kMax;
+  const yOfAlt = z => m.t + (zMax + BIN - z) / BIN * bh;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+
+  for (const t of ticks(kMax, 5)) {
+    el("line", { x1: x(t), x2: x(t), y1: m.t, y2: m.t + ih, stroke: "var(--soft)" }, svg);
+    el("text", { x: x(t), y: H - 10, "text-anchor": "middle" }, svg).textContent = fmt(t);
+  }
+  el("text", { x: m.l + iw, y: H - 0, "text-anchor": "end" }, svg).textContent = "km per 100 m band";
+
+  // "By grade" stacks each band's km by grade, inside the total drawn as a dashed outline.
+  const gh = histMode === "grade" ? GRADES.map((_, gi) => a.gh[gi] || {}) : null;
+  if (gh) {
+    // Each band's bar is the enabled grades stacked from the axis, green first.
+    bands.forEach((z, i) => {
+      let acc = 0;
+      gh.forEach((series, gi) => {
+        const km = series[z] || 0;
+        if (gradesOff.has(gi) || !km) return;
+        el("rect", { x: x(acc), y: m.t + i * bh + gap / 2, width: Math.max(0.5, x(acc + km) - x(acc)), height: Math.max(1, bh - gap),
+          fill: GRADES[gi].color, "fill-opacity": 0.55 }, svg);
+        acc += km;
+      });
+    });
+    // The total as a stepped dashed outline, so hidden grades show as the gap.
+    let d = `M${x(0)},${m.t}`;
+    bands.forEach((z, i) => { const xx = x(a.hist[z] || 0); d += ` H${xx} V${m.t + (i + 1) * bh}`; });
+    el("path", { d: d + ` H${x(0)}`, fill: "none", stroke: "var(--slate)", "stroke-width": 1.1, "stroke-dasharray": "4 3" }, svg);
+    const key = $("#histNote");
+    key.className = "gradekey";
+    gradeToggles(key, gh.map(series => Object.values(series).reduce((s, v) => s + v, 0)));
+    const tot = document.createElement("span"); tot.textContent = "dashed: all piste"; key.appendChild(tot);
+  } else {
+    $("#histNote").className = "";
+    $("#histNote").textContent = "Each bar is 100 m of altitude. Drag the orange line to move the snow line.";
+  }
+
+  const labelEvery = Math.ceil(bands.length / 8), tip = $("#histTip");
+  bands.forEach((z, i) => {
+    const km = a.hist[z] || 0, y0 = m.t + i * bh;
+    if (i % labelEvery === 0) el("text", { x: m.l - 6, y: y0 + bh / 2 + 4, "text-anchor": "end" }, svg).textContent = fmt(z) + " m";
+    if (histMode === "total") {
+      const fill = hyps(z + BIN / 2);
+      el("rect", { x: m.l, y: y0 + gap / 2, width: Math.max(0, x(km) - m.l), height: Math.max(1, bh - gap), fill,
+        stroke: fill === HYPS[HYPS.length - 1][1] ? "#9fb3c2" : "none", "stroke-width": 0.6 }, svg);
+    }
+    const hit = el("rect", { x: m.l, y: y0, width: iw, height: bh, fill: "transparent" }, svg);
+    hit.addEventListener("mousemove", ev => {
+      if (svg.classList.contains("dragging")) return;
+      tip.innerHTML = "";
+      const b = document.createElement("b"); b.textContent = `${fmt(z)}–${fmt(z + BIN)} m`;
+      tip.append(b, `${km.toFixed(1)} km`);
+      if (gh) GRADES.forEach((g, gi) => { if (gh[gi][z]) tip.append(document.createElement("br"), `${g.name} ${gh[gi][z].toFixed(1)} km`); });
+      placeTip(tip, $("#histCard"), ev);
+    });
+    hit.addEventListener("mouseleave", () => tip.style.display = "none");
+  });
+  const my = yOfAlt(a.median_alt);
+  el("line", { x1: m.l, x2: m.l + iw, y1: my, y2: my, stroke: "var(--ink)", "stroke-dasharray": "2 3" }, svg);
+  el("text", { x: m.l + iw - 2, y: my - 4, "text-anchor": "end", style: "fill:var(--ink)" }, svg).textContent = `median ${fmt(a.median_alt)} m`;
+
+  // Above/below brackets, then the draggable snow line (snaps to band boundaries).
+  const ty = Math.max(m.t, Math.min(m.t + ih, yOfAlt(thr)));
+  const bx = m.l + iw + 70;
+  const bracket = (y1, y2, color, km, word) => {
+    if (y2 - y1 < 2) return;
+    el("path", { d: `M${bx - 4},${y1} h8 M${bx},${y1} V${y2} M${bx - 4},${y2} h8`, stroke: color, "stroke-width": 1.4, fill: "none" }, svg);
+    const t = el("text", { x: bx + 8, y: (y1 + y2) / 2, style: `fill:${color};font-weight:800` }, svg); t.textContent = fmt(km) + " km";
+    const u = el("text", { x: bx + 8, y: (y1 + y2) / 2 + 12, style: `fill:${color}` }, svg); u.textContent = word;
+  };
+  bracket(m.t, ty - 2, HIGH, above, "above");
+  bracket(ty + 2, m.t + ih, LOW, a.km - above, "below");
+  const g = el("g", { class: "handle" }, svg);
+  el("rect", { x: m.l - 6, y: ty - 8, width: iw + 70, height: 16, fill: "transparent" }, g);
+  el("line", { x1: m.l - 4, x2: m.l + iw + 8, y1: ty, y2: ty, stroke: "var(--marker)", "stroke-width": 2.2 }, g);
+  el("rect", { x: m.l + iw + 8, y: ty - 9, width: 50, height: 18, fill: "var(--marker)" }, g);
+  el("text", { x: m.l + iw + 33, y: ty + 4, "text-anchor": "middle", style: "fill:#fff;font-weight:800" }, g).textContent = fmt(thr);
+
+  const thrAt = ev => {
+    const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+    const yy = p.matrixTransform(svg.getScreenCTM().inverse()).y;
+    const inp = $("#thr");
+    return Math.max(+inp.min, Math.min(+inp.max, zMax + BIN - Math.round((yy - m.t) / bh) * BIN));
+  };
+  svg.onpointerdown = ev => {
+    if (!ev.target.closest(".handle")) return;
+    svg.setPointerCapture(ev.pointerId); svg.classList.add("dragging"); tip.style.display = "none";
+  };
+  svg.onpointermove = ev => {
+    if (!svg.classList.contains("dragging")) return;
+    const v = thrAt(ev);
+    if (+$("#thr").value !== v) { $("#thr").value = v; render(); }
+  };
+  svg.onpointerup = svg.onpointercancel = ev => { svg.classList.remove("dragging"); svg.releasePointerCapture?.(ev.pointerId); };
+}
+
+// Grade on/off buttons, shared by the plot and the histogram (one filter, gradesOff).
+// With kms, each button shows that grade's km and grades with none are left out.
+function gradeToggles(container, kms) {
+  container.textContent = "";
+  GRADES.forEach((g, gi) => {
+    if (kms && kms[gi] < 0.5) return;
+    const b = document.createElement("button"), i = document.createElement("i");
+    b.type = "button"; b.className = "gradetoggle"; b.setAttribute("aria-pressed", !gradesOff.has(gi));
+    i.style.background = g.color; b.append(i, kms ? `${g.name} ${fmt(kms[gi])} km` : g.name);
+    b.addEventListener("click", () => { gradesOff.has(gi) ? gradesOff.delete(gi) : gradesOff.add(gi); render(); });
+    container.appendChild(b);
+  });
+}
+
+// Piste profile modal: elevation along the run, with a gradient strip underneath.
+let currentRun = null; // the run shown in the modal, redrawn when its snow line slider moves
+function openRun(r) {
+  let pts = r.c.flat().filter(p => p[2] != null);
+  if (pts.length < 2) return;
+  if (pts[0][2] < pts[pts.length - 1][2]) pts = pts.reverse(); // start at the top
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + distM(pts[i - 1], pts[i]));
+  const L = cum[cum.length - 1];
+  const zAt = s => {
+    let i = cum.findIndex(c => c >= s); if (i <= 0) return pts[0][2];
+    const t = (s - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return pts[i - 1][2] + t * (pts[i][2] - pts[i - 1][2]);
+  };
+  const STEP = 50, steps = [];
+  for (let s = 0; s < L - 5; s += STEP) {
+    const e = Math.min(L, s + STEP);
+    steps.push({ s, e, g: 100 * (zAt(s) - zAt(e)) / (e - s) });
+  }
+  const zs = pts.map(p => p[2]), top = Math.max(...zs), bottom = Math.min(...zs);
+  const steepest = Math.max(...steps.map(t => t.g));
+  const g = GRADES[gradeIndex(r.d)], thr = +$("#thr").value;
+
+  $("#rName").textContent = r.n || "Unnamed run";
+  const chip = $("#rGrade"); chip.textContent = "";
+  const dot = document.createElement("i"); dot.style.background = g.color;
+  chip.append(dot, r.d ? `${g.name} (${r.d})` : g.name);
+  const stats = $("#rStats"); stats.textContent = "";
+  for (const [v, label] of [[(L / 1000).toFixed(2) + " km", "length"], [fmt(top - bottom) + " m", "vertical drop"],
+    [`${fmt(top)}–${fmt(bottom)} m`, "top to bottom"], [Math.round(100 * (top - bottom) / L) + "%", "average gradient"],
+    [Math.round(steepest) + "%", "steepest 50 m"]]) {
+    const d = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
+    b.textContent = v; s.textContent = label; d.append(b, s); stats.appendChild(d);
+  }
+
+  const dlg = $("#runDlg");
+  currentRun = r;
+  if (!dlg.open) dlg.showModal();
+  const svg = $("#rProfile"); svg.textContent = "";
+  const W = Math.max(320, dlg.clientWidth - 2), m = { t: 12, r: 18, b: 26, l: 56 }, H1 = 230, H2 = 70, H = m.t + H1 + 18 + H2 + m.b;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("width", W); svg.setAttribute("height", H);
+  const iw = W - m.l - m.r, pad = Math.max(20, (top - bottom) * 0.08), zLo = bottom - pad, zHi = top + pad;
+  const x = s => m.l + iw * s / L, y = z => m.t + H1 * (zHi - z) / (zHi - zLo);
+  for (const t of ticks(zHi - zLo, 4)) {
+    const z = Math.ceil(zLo / 100) * 100 + t; if (z > zHi) continue;
+    el("line", { x1: m.l, x2: m.l + iw, y1: y(z), y2: y(z), stroke: "var(--soft)" }, svg);
+    el("text", { x: m.l - 6, y: y(z) + 4, "text-anchor": "end" }, svg).textContent = fmt(z) + " m";
+  }
+  const line = pts.map((p, i) => `${x(cum[i])},${y(p[2])}`).join(" L");
+  el("path", { d: `M${x(0)},${m.t + H1} L${line} L${x(L)},${m.t + H1} Z`, fill: g.color, "fill-opacity": 0.12 }, svg);
+  el("path", { d: `M${line}`, fill: "none", stroke: g.color, "stroke-width": 2.4, "stroke-linejoin": "round" }, svg);
+  if (thr > zLo && thr < zHi) {
+    el("line", { x1: m.l, x2: m.l + iw, y1: y(thr), y2: y(thr), stroke: "var(--marker)", "stroke-width": 1.6, "stroke-dasharray": "6 4" }, svg);
+    el("text", { x: m.l + iw - 2, y: y(thr) - 5, "text-anchor": "end", style: "fill:var(--marker);font-weight:800" }, svg).textContent = `snow line ${fmt(thr)} m`;
+  }
+  // Gradient strip: one bar per 50 m step, darker when steeper.
+  const g0 = m.t + H1 + 18, gMax = Math.max(40, Math.ceil(steepest / 10) * 10);
+  const steepColor = v => v < 10 ? "#e7dcc6" : v < 20 ? "#d4b48a" : v < 30 ? "#b98a5a" : v < 40 ? "#8f5d36" : "#5c3a1f";
+  for (const t of steps) {
+    const h = H2 * Math.max(0, t.g) / gMax;
+    el("rect", { x: x(t.s), y: g0 + H2 - h, width: Math.max(1, x(t.e) - x(t.s) - 1), height: h, fill: steepColor(t.g) }, svg);
+  }
+  for (const v of [20, 40].filter(v => v <= gMax)) {
+    const yy = g0 + H2 - H2 * v / gMax;
+    el("line", { x1: m.l, x2: m.l + iw, y1: yy, y2: yy, stroke: "var(--soft)", "stroke-dasharray": "2 3" }, svg);
+    el("text", { x: m.l - 6, y: yy + 4, "text-anchor": "end" }, svg).textContent = v + "%";
+  }
+  el("text", { x: m.l - 6, y: g0 + 8, "text-anchor": "end", style: "fill:var(--ink);font-weight:700" }, svg).textContent = "gradient";
+  for (const t of ticks(L / 1000, 5)) {
+    el("text", { x: x(t * 1000), y: H - 8, "text-anchor": "middle" }, svg).textContent = t ? `${+t.toFixed(2)} km` : "0";
+  }
+}
+
+const fold = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+// Search every domain; picking one adjusts the filters so it is in view, then selects it.
+function setupFind() {
+  const input = $("#find"), list = $("#findList");
+  for (const a of DATA) a.key = fold(a.label);
+  let hits = [], active = 0;
+  const close = () => { list.hidden = true; input.setAttribute("aria-expanded", "false"); };
+  const paint = () => {
+    list.textContent = "";
+    if (!hits.length) {
+      const li = document.createElement("li"); li.className = "none"; li.textContent = "No domain by that name";
+      list.appendChild(li);
+    }
+    hits.forEach((a, i) => {
+      const li = document.createElement("li");
+      li.id = "find-" + i; li.setAttribute("role", "option"); li.setAttribute("aria-selected", i === active);
+      const name = document.createElement("span"); name.textContent = a.label;
+      const km = document.createElement("span"); km.className = "km"; km.textContent = fmt(a.km) + " km";
+      const where = document.createElement("small");
+      const parent = a.parent && DATA.find(p => p.id === a.parent);
+      where.textContent = [a.countries.map(c => COUNTRY_NAMES[c] || c).join(", "), a.region, parent && `part of ${parent.label}`].filter(Boolean).join(", ");
+      li.append(name, km, where);
+      li.addEventListener("mousedown", e => { e.preventDefault(); pick(a); });
+      list.appendChild(li);
+    });
+    input.setAttribute("aria-activedescendant", hits.length ? "find-" + active : "");
+    list.hidden = false; input.setAttribute("aria-expanded", "true");
+  };
+  const pick = a => {
+    $("#region").value = a.region;
+    unchecked.clear();
+    // Sub-resorts stay pinned on the right rather than switching the domain filter off.
+    pinned = !!(a.parent || a.pass_network);
+    if (!pinned && a.km < (+$("#minKm").value || 0)) $("#minKm").value = 0;
+    selectedId = a.id;
+    input.value = ""; close(); input.blur();
+    render();
+  };
+  input.addEventListener("input", () => {
+    const q = fold(input.value.trim());
+    if (q.length < 2) { close(); return; }
+    hits = DATA.filter(a => a.key.includes(q))
+      .sort((a, b) => (b.key.startsWith(q) - a.key.startsWith(q)) || (!!a.parent - !!b.parent) || (b.km - a.km))
+      .slice(0, 8);
+    active = 0; paint();
+  });
+  input.addEventListener("keydown", e => {
+    if (list.hidden) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      active = (active + (e.key === "ArrowDown" ? 1 : -1) + hits.length) % hits.length; paint();
+    } else if (e.key === "Enter" && hits[active]) { e.preventDefault(); pick(hits[active]); }
+    else if (e.key === "Escape") close();
+  });
+  input.addEventListener("blur", close);
+  document.addEventListener("keydown", e => {
+    if (e.key === "/" && !["INPUT", "SELECT"].includes(document.activeElement.tagName)) { e.preventDefault(); input.focus(); }
+  });
+}
+
+// Any plate with an Expand button can open as a full-screen overlay; charts redraw to fill it.
+function setupExpand() {
+  const back = $("#backdrop");
+  const set = (plate, open) => {
+    plate.classList.toggle("expanded", open);
+    back.hidden = !open;
+    const btn = plate.querySelector(".expandbtn");
+    btn.querySelector("span").textContent = open ? "Close" : "Expand";
+    btn.setAttribute("aria-label", `${open ? "Close" : "Expand"} ${btn.dataset.what}`);
+    render();
+    map?.resize();
+  };
+  const openPlate = () => document.querySelector(".plate.expanded");
+  document.querySelectorAll(".expandbtn").forEach(btn => btn.addEventListener("click", () => {
+    const plate = btn.closest(".plate");
+    set(plate, !plate.classList.contains("expanded"));
+  }));
+  back.addEventListener("click", () => openPlate() && set(openPlate(), false));
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && openPlate() && !$("#runDlg").open) set(openPlate(), false);
+  });
+}
+
+/* ---------- Map ---------- */
+let map = null, mapReady = false, fittedId = null, runsFor = null, runs = null, runsBounds = null, userMoved = false;
+const runsCache = new Map(), runsData = new Map(); // id -> pending fetch, id -> loaded runs
+
+const MAP_STYLE = {
+  version: 8,
+  glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+  sources: {
+    dem: { type: "raster-dem", tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"], encoding: "terrarium", tileSize: 256, maxzoom: 13,
+      attribution: "Terrain: <a href=\"https://registry.opendata.aws/terrain-tiles/\">AWS Terrain Tiles</a>" },
+    omt: { type: "vector", url: "https://tiles.openfreemap.org/planet",
+      attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a> © <a href=\"https://www.openmaptiles.org/\">OpenMapTiles</a> © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>" },
+  },
+  layers: [
+    { id: "paper", type: "background", paint: { "background-color": "#eef0ea" } },
+    { id: "relief", type: "color-relief", source: "dem", paint: { "color-relief-opacity": 0.9, "color-relief-color": ["interpolate", ["linear"], ["elevation"],
+      0, HYPS[0][1], 1000, HYPS[1][1], 1400, HYPS[2][1], 1800, HYPS[3][1], 2200, HYPS[4][1], 2600, HYPS[5][1], 3000, HYPS[6][1]] } },
+    { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#4a4038", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#6f6257" } },
+    { id: "glacier", type: "fill", source: "omt", "source-layer": "landcover", filter: ["==", ["get", "subclass"], "glacier"], paint: { "fill-color": "#f6f9fb", "fill-opacity": 0.3 } },
+    { id: "water", type: "fill", source: "omt", "source-layer": "water", paint: { "fill-color": "#a9c8dc" } },
+    { id: "rivers", type: "line", source: "omt", "source-layer": "waterway", paint: { "line-color": "#8fb6d0", "line-width": 0.8 } },
+    { id: "roads", type: "line", source: "omt", "source-layer": "transportation", filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary"]]],
+      paint: { "line-color": "#ffffff", "line-opacity": 0.75, "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.4, 12, 1.6] } },
+    { id: "borders", type: "line", source: "omt", "source-layer": "boundary", filter: ["==", ["get", "admin_level"], 2], paint: { "line-color": "#7c7088", "line-width": 1.1, "line-dasharray": [4, 2] } },
+    { id: "places", type: "symbol", source: "omt", "source-layer": "place", filter: ["in", ["get", "class"], ["literal", ["city", "town", "village"]]],
+      layout: { "text-field": ["coalesce", ["get", "name:latin"], ["get", "name"]], "text-font": ["Noto Sans Regular"], "text-size": 11 },
+      paint: { "text-color": "#232a26", "text-halo-color": "#f6f7f2", "text-halo-width": 1.3 } },
+    { id: "peaks", type: "symbol", source: "omt", "source-layer": "mountain_peak", minzoom: 10,
+      layout: { "text-field": ["concat", ["get", "name"], "\n", ["to-string", ["get", "ele"]], " m"], "text-font": ["Noto Sans Italic"], "text-size": 10, "text-offset": [0, 0.6], "text-anchor": "top" },
+      paint: { "text-color": "#4a3b2e", "text-halo-color": "#f6f7f2", "text-halo-width": 1 } },
+  ],
+};
+
+// Lifts in piste-map convention: drags dashed, chairlifts with cross-ticks, gondolas with small cabins,
+// cable cars with large cabins, funiculars and railways with ties. Stations are small squares.
+const liftCat = t => ({ chair_lift: "chair", gondola: "gondola", mixed_lift: "gondola", cable_car: "cable", funicular: "rail", railway: "rail",
+  drag_lift: "drag", "t-bar": "drag", "j-bar": "drag", platter: "drag", rope_tow: "drag", magic_carpet: "carpet" })[t] || "other";
+const LIFT_LAYERS = ["lifts-casing", "lifts-solid", "lifts-drag", "lifts-chair-0", "lifts-chair-1", "lifts-chair-2",
+  "lifts-gondola-0", "lifts-gondola-1", "lifts-gondola-2", "lifts-cable-0", "lifts-rail-0", "lift-stations"];
+
+function addLiftIcons() {
+  const ink = "#1d1f1e";
+  const make = (name, w, h, draw) => {
+    const c = document.createElement("canvas"); c.width = w * 2; c.height = h * 2;
+    const g = c.getContext("2d"); g.scale(2, 2); draw(g);
+    map.addImage(name, g.getImageData(0, 0, w * 2, h * 2), { pixelRatio: 2 });
+  };
+  make("lift-tick", 4, 7, g => { g.fillStyle = ink; g.fillRect(1.3, 0, 1.4, 7); });
+  make("lift-cabin", 9, 9, g => { g.beginPath(); g.arc(4.5, 4.5, 3.2, 0, 2 * Math.PI); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 1.4; g.strokeStyle = ink; g.stroke(); });
+  make("lift-tram", 12, 10, g => { g.fillStyle = ink; g.fillRect(1, 1, 10, 8); g.fillStyle = "#fff"; g.fillRect(3, 3, 6, 2.5); });
+  make("lift-tie", 3, 7, g => { g.fillStyle = ink; g.fillRect(0.8, 0, 1.4, 7); });
+  make("lift-station", 8, 8, g => { g.fillStyle = "#fff"; g.fillRect(1, 1, 6, 6); g.lineWidth = 1.4; g.strokeStyle = ink; g.strokeRect(1, 1, 6, 6); });
+}
+
+function addLiftLayers() {
+  addLiftIcons();
+  map.addSource("lifts", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  map.addSource("lift-stations", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+  const notDrag = ["!", ["in", ["get", "cat"], ["literal", ["drag", "carpet"]]]];
+  map.addLayer({ id: "lifts-casing", type: "line", source: "lifts", filter: notDrag,
+    paint: { "line-color": "#ffffff", "line-opacity": 0.7, "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2, 13, ["match", ["get", "cat"], "cable", 5, 3.5]] } }, "places");
+  map.addLayer({ id: "lifts-solid", type: "line", source: "lifts", filter: notDrag,
+    paint: { "line-color": "#1d1f1e", "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.7, 13, ["match", ["get", "cat"], "cable", 2.4, 1.4]] } }, "places");
+  map.addLayer({ id: "lifts-drag", type: "line", source: "lifts", filter: ["in", ["get", "cat"], ["literal", ["drag", "carpet"]]],
+    paint: { "line-color": "#1d1f1e", "line-dasharray": [2.5, 1.5], "line-opacity": ["match", ["get", "cat"], "carpet", 0.4, 1],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 9, 0.6, 13, 1.3] } }, "places");
+  // Marks sit at fixed points on the ground (see liftFeatures), so they don't slide about as you zoom.
+  // They come in tiers: tier 0 (every fourth mark) first, then tier 1, then the rest, so spacing stays readable.
+  // (A zoom-dependent icon-size alongside icon-rotate stops these layers drawing, so size is fixed.)
+  for (const [cat, icon, minzooms] of [["chair", "lift-tick", [11.5, 12.5, 13.5]], ["gondola", "lift-cabin", [11.5, 12.5, 13.5]],
+    ["cable", "lift-tram", [10.5]], ["rail", "lift-tie", [15]]]) {
+    minzooms.forEach((minzoom, tier) => map.addLayer({ id: `lifts-${cat}-${tier}`, type: "symbol", source: "lift-stations", minzoom,
+      filter: ["all", ["==", ["get", "cat"], cat], ["==", ["get", "tier"], tier]],
+      layout: { "icon-image": icon, "icon-rotate": ["get", "rot"], "icon-rotation-alignment": "map",
+        "icon-allow-overlap": true, "icon-ignore-placement": true } }, "places"));
+  }
+  map.addLayer({ id: "lift-stations", type: "symbol", source: "lift-stations", minzoom: 10.5, filter: ["==", ["get", "cat"], "station"],
+    layout: { "icon-image": "lift-station", "icon-allow-overlap": true, "icon-ignore-placement": true } }, "places");
+}
+
+// Ground spacing of each lift type's marks in metres; cable cars get two cabins, at a third and two thirds.
+const MARK_SPACING = { chair: 60, gondola: 70, rail: 20 };
+
+function liftFeatures(lifts) {
+  const lines = [], stations = [], marks = [];
+  const point = (props, p) => ({ type: "Feature", properties: props, geometry: { type: "Point", coordinates: p } });
+  for (const l of lifts) {
+    const zs = l.c.flat().map(p => p[2]).filter(z => z != null);
+    const cat = liftCat(l.t);
+    const props = { cat, type: (l.t || "lift").replace(/_/g, " "), name: l.n,
+      lo: zs.length ? Math.min(...zs) : 0, hi: zs.length ? Math.max(...zs) : 0 };
+    for (const line of l.c) {
+      lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: line } });
+      for (const p of [line[0], line[line.length - 1]]) stations.push(point({ cat: "station" }, p));
+      // Walk the line, dropping a mark at each spacing; rot turns ticks across the line and cabins along it.
+      const segs = [];
+      for (let i = 1; i < line.length; i++) segs.push([line[i - 1], line[i], distM(line[i - 1], line[i])]);
+      const total = segs.reduce((s, sg) => s + sg[2], 0);
+      const at = cat === "cable" ? [total / 3, 2 * total / 3]
+        : MARK_SPACING[cat] ? Array.from({ length: Math.floor(total / MARK_SPACING[cat]) }, (_, k) => (k + 0.5) * (total / Math.floor(total / MARK_SPACING[cat]))) : [];
+      let walked = 0, si = 0;
+      for (const [k, d] of at.entries()) {
+        const tier = cat === "chair" || cat === "gondola" ? (k % 4 === 0 ? 0 : k % 2 === 0 ? 1 : 2) : 0;
+        while (si < segs.length - 1 && walked + segs[si][2] < d) walked += segs[si++][2];
+        const [a, b, len] = segs[si], t = len ? (d - walked) / len : 0;
+        const bearing = Math.atan2((b[0] - a[0]) * Math.cos(a[1] * Math.PI / 180), b[1] - a[1]) * 180 / Math.PI;
+        marks.push(point({ cat, tier, rot: cat === "cable" ? bearing - 90 : bearing + 90 }, [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]));
+      }
+    }
+  }
+  return [lines, [...stations, ...marks]].map(features => ({ type: "FeatureCollection", features }));
+}
+
+// Re-frame the selected domain's pistes after the viewer has zoomed or panned.
+function resetMapView() {
+  if (!map || !runsBounds) return;
+  userMoved = false; $("#mapReset").disabled = true;
+  map.fitBounds(runsBounds, { padding: 30, duration: 500, maxZoom: 14 });
+}
+
+function initMap() {
+  if (!window.maplibregl) { $("#map").textContent = "The map library didn't load."; return; }
+  map = new maplibregl.Map({ container: "map", style: MAP_STYLE, center: [10, 46.3], zoom: 5.5, attributionControl: { compact: true } });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  // Keep the domain framed as the plate resizes, until the viewer moves the map themselves.
+  new ResizeObserver(() => {
+    map.resize();
+    if (runsBounds && !userMoved) map.fitBounds(runsBounds, { padding: 30, duration: 0, maxZoom: 14 });
+  }).observe($("#map"));
+  map.on("movestart", e => { if (e.originalEvent) { userMoved = true; $("#mapReset").disabled = false; } });
+  // Add our layers once the style is ready, rather than waiting for every relief tile to render.
+  const setup = () => {
+    if (mapReady) return;
+    map.addSource("runs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addSource("domains", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    const width = ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2.4, 15, 4];
+    map.addLayer({ id: "runs-casing", type: "line", source: "runs", layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-color": "#ffffff", "line-opacity": ["match", ["get", "a"], 1, 0.8, 0, 0.2, 0.4],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2, 12, 4, 15, 6.5] } }, "places");
+    // Piste colour is its grade; runs below the snow line are faded.
+    map.addLayer({ id: "runs", type: "line", source: "runs", layout: { "line-cap": "round", "line-join": "round" },
+      paint: { "line-width": width, "line-color": ["get", "color"], "line-opacity": ["match", ["get", "a"], 1, 1, 0, 0.3, 0.55] } }, "places");
+    addLiftLayers();
+    // Domain markers fade out as you zoom in; the selected one hides once its pistes are in view.
+    map.addLayer({ id: "domains", type: "circle", source: "domains", maxzoom: 10, filter: ["any", ["!", ["get", "sel"]], ["<", ["zoom"], 8]],
+      paint: { "circle-color": ["get", "color"], "circle-stroke-color": ["case", ["get", "sel"], "#d9542b", "#2a2f2b"], "circle-stroke-width": ["case", ["get", "sel"], 3, 0.8],
+        "circle-radius": ["interpolate", ["linear"], ["sqrt", ["get", "km"]], 3, 3, 25, 15] } });
+    map.addLayer({ id: "domain-labels", type: "symbol", source: "domains", maxzoom: 10,
+      filter: ["all", ["<=", ["get", "rank"], 12], ["any", ["!", ["get", "sel"]], ["<", ["zoom"], 8]]],
+      layout: { "text-field": ["get", "name"], "text-font": ["Noto Sans Bold"], "text-size": 11, "text-offset": [0, 1.2], "text-anchor": "top" },
+      paint: { "text-color": "#232a26", "text-halo-color": "#f6f7f2", "text-halo-width": 1.4 } });
+
+    map.on("click", "domains", e => select(e.features[0].properties.id));
+    const domainPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: "none" });
+    map.on("mousemove", "domains", e => {
+      const p = e.features[0].properties;
+      map.getCanvas().style.cursor = "pointer";
+      domainPopup.setLngLat(e.features[0].geometry.coordinates)
+        .setText(`${p.name}: ${fmt(p.km)} km, ${fmt(p.above)} above ${fmt(+$("#thr").value)} m`).addTo(map);
+    });
+    map.on("mouseleave", "domains", () => { map.getCanvas().style.cursor = ""; domainPopup.remove(); });
+    const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, maxWidth: "none" });
+    map.on("mousemove", "runs", e => {
+      const p = e.features[0].properties;
+      map.getCanvas().style.cursor = "pointer";
+      popup.setLngLat(e.lngLat).setText(`${p.name || "Unnamed run"} (${p.grade}): ${fmt(p.hi)} to ${fmt(p.lo)} m`).addTo(map);
+    });
+    map.on("mouseleave", "runs", () => { popup.remove(); map.getCanvas().style.cursor = ""; });
+    map.on("click", "runs", e => { popup.remove(); if (runs) openRun(runs[e.features[0].properties.i]); });
+    for (const layer of ["lifts-solid", "lifts-drag"]) {
+      map.on("mousemove", layer, e => {
+        const p = e.features[0].properties;
+        popup.setLngLat(e.lngLat).setText(`${p.name || "Unnamed lift"} (${p.type}): ${fmt(p.lo)} to ${fmt(p.hi)} m`).addTo(map);
+      });
+      map.on("mouseleave", layer, () => popup.remove());
+    }
+    mapReady = true;
+    render();
+  };
+  if (map.isStyleLoaded()) setup(); else map.once("style.load", setup);
+  map.once("load", setup);
+}
+
+// Split each run where it crosses the snow line, interpolating the crossing point.
+function runFeatures(list, thr) {
+  const features = [];
+  list.forEach((r, ri) => {
+    const g = GRADES[gradeIndex(r.d)];
+    for (const line of r.c) {
+      let piece = [line[0]], state = null;
+      const flush = () => { if (piece.length > 1) features.push({ type: "Feature", properties: { a: state ?? -1, i: ri, color: g.color, grade: g.name, name: r.n, hi: r.hi, lo: r.lo }, geometry: { type: "LineString", coordinates: piece } }); };
+      for (let i = 1; i < line.length; i++) {
+        const p0 = line[i - 1], p1 = line[i];
+        if (p0[2] == null || p1[2] == null) {
+          if (state !== -1) { flush(); piece = [p0]; state = -1; }
+          piece.push(p1); continue;
+        }
+        const s0 = p0[2] >= thr ? 1 : 0, s1 = p1[2] >= thr ? 1 : 0;
+        if (state === null || state === -1) { if (state === -1) { flush(); piece = [p0]; } state = s0; }
+        if (s0 !== s1) {
+          const t = (thr - p0[2]) / (p1[2] - p0[2]);
+          const cross = [p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1]), thr];
+          piece.push(cross); flush(); piece = [cross]; state = s1;
+        }
+        piece.push(p1);
+      }
+      flush();
+    }
+  });
+  return { type: "FeatureCollection", features };
+}
+
+async function loadRuns(id) {
+  if (!runsCache.has(id)) {
+    runsCache.set(id, fetch(`data/runs/${id}.json`, { cache: "no-cache" }).then(r => r.json()).then(d => {
+      for (const r of d.runs) {
+        const zs = r.c.flat().map(p => p[2]).filter(z => z != null);
+        r.hi = zs.length ? Math.max(...zs) : 0; r.lo = zs.length ? Math.min(...zs) : 0;
+      }
+      d.runs.lifts = d.lifts || [];
+      runsData.set(id, d.runs);
+      return d.runs;
+    }));
+  }
+  return runsCache.get(id);
+}
+
+function updateMap(rows, sel, thr) {
+  if (!mapReady) return;
+  map.getSource("domains").setData({ type: "FeatureCollection", features: rows.filter(a => a.lon != null).map(a => ({
+    type: "Feature", geometry: { type: "Point", coordinates: [a.lon, a.lat] },
+    properties: { id: a.id, km: a.km, above: a.above, rank: a.rank, name: a.label, color: hyps(a.median_alt), sel: a.id === selectedId },
+  })) });
+  if (!sel) return;
+  if (runsFor === sel.id && runs) { map.getSource("runs").setData(runFeatures(runs, thr)); return; }
+  const id = sel.id;
+  loadRuns(id).then(list => {
+    if (selectedId !== id) return;
+    runsFor = id; runs = list;
+    map.getSource("runs").setData(runFeatures(list, +$("#thr").value));
+    const [liftLines, points] = liftFeatures(list.lifts);
+    map.getSource("lifts").setData(liftLines);
+    map.getSource("lift-stations").setData(points);
+    if (fittedId !== id && list.length) {
+      const b = new maplibregl.LngLatBounds();
+      for (const r of list) for (const line of r.c) for (const p of line) b.extend([p[0], p[1]]);
+      map.resize();
+      map.fitBounds(b, { padding: 30, duration: fittedId ? 700 : 0, maxZoom: 14 });
+      fittedId = id; runsBounds = b; userMoved = false; $("#mapReset").disabled = true;
+    }
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
