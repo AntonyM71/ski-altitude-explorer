@@ -73,7 +73,7 @@ uv run python build_stats.py    # build data/ski_area_stats.json and data/runs/ 
 uv run python -m http.server    # then open http://localhost:8000/
 ```
 
-`fetch.py` reuses files it has already downloaded. Pass `--force` to download them again. OpenSkiMap rebuilds its exports daily, so there's no need to re-download often.
+`fetch.py` reuses files it has already downloaded. Pass `--force` to download them again. If the connection drops partway through a file, it retries that file up to five times. OpenSkiMap rebuilds its exports daily, so there's no need to re-download often.
 
 ## Project layout
 
@@ -100,7 +100,6 @@ Each run downloads the OpenSkiMap data, runs `build_stats.py`, copies `index.htm
 
 ## Known issues and next steps
 
-- **The first deploy failed at the download step.** The connection to OpenSkiMap dropped partway through `runs.geojson`. `fetch.py` needs retries and the ability to resume an interrupted download.
 - **Some linked domains aren't grouped in the data.** The Via Lattea (Montgenèvre, Claviere, Sansicario, Sestriere, Sauze d'Oulx) is one example, so its resorts are ranked separately. The plan is to detect links automatically where runs or lifts in different areas join, and to name known domains.
 - **Pistes mapped as areas aren't counted**, which undercounts open bowls and some glacier skiing.
 - **A domain's region comes from its first listed country,** so a few cross-border domains sit in a neighbouring region.
