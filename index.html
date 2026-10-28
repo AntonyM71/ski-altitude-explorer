@@ -134,6 +134,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
 #map { flex: 1; min-height: 0; }
 .plate.expanded {
   position: fixed; inset: 28px; z-index: 50; display: flex; flex-direction: column; max-height: none;
+  height: auto; /* fill to the inset edges, overriding the map plate's fixed height on narrow screens */
   box-shadow: 0 0 0 5px var(--plate), 0 0 0 6px var(--ink), 0 24px 60px rgb(0 0 0 / .35);
 }
 .plate.expanded svg { margin: 0 auto; }
@@ -647,8 +648,8 @@ function drawScatter(rows, thr) {
   const full = niceMax(Math.max(10, ...rows.map(a => a.fkm)));
   sFull = full;
   if (sView && sView.s >= full) sView = null;
-  // At full extent one finger scrolls the page; once zoomed in, one finger pans the plot.
-  svg.style.touchAction = sView ? "none" : "pan-y";
+  // On the page one finger always scrolls the page (two fingers pinch and pan); expanded, one finger pans.
+  svg.style.touchAction = expanded ? "none" : "pan-y";
   if (sView) {
     sView.x0 = Math.max(0, Math.min(full - sView.s, sView.x0));
     sView.y0 = Math.max(0, Math.min(full - sView.s, sView.y0));
@@ -679,7 +680,8 @@ function drawScatter(rows, thr) {
     el("text", { x: ox - 6, y: y(t) + 4, "text-anchor": "end" }, svg).textContent = fmt(t);
   }
   el("text", { x: ox + side, y: m.t + side + 27, "text-anchor": "end" }, svg).textContent = "total piste, km";
-  el("text", { x: ox, y: m.t + side + 27, style: "fill:var(--muted)" }, svg).textContent = "scroll to zoom, drag to pan";
+  el("text", { x: ox, y: m.t + side + 27, style: "fill:var(--muted)" }, svg).textContent =
+    TOUCH ? "pinch to zoom, two fingers to pan" : "scroll to zoom, drag to pan";
   el("text", { x: ox, y: m.t - 8 }, svg).textContent = `km above ${fmt(thr)} m`;
 
   // Share contours, labelled like a map's contour lines where they leave the window.
@@ -749,7 +751,7 @@ function drawScatter(rows, thr) {
   svg.onpointerdown = ev => {
     if (ev.pointerType === "mouse") sTouches.clear(); // a mouse is one pointer; drop anything left over
     sTouches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    svg.setPointerCapture(ev.pointerId);
+    try { svg.setPointerCapture(ev.pointerId); } catch { /* pointer already gone; nothing to capture */ }
     if (sTouches.size === 2) {
       const [a, b] = pair(), mid = toSvg({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
       sPinch = { dist: Math.hypot(a.x - b.x, a.y - b.y), v: { ...v },
@@ -762,9 +764,12 @@ function drawScatter(rows, thr) {
   svg.onpointermove = ev => {
     if (sTouches.has(ev.pointerId)) sTouches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (sPinch && sTouches.size === 2) {
+      // Zoom by the change in finger spread, keeping the point that started under the fingers' midpoint
+      // under the midpoint now, so moving both fingers pans.
       const [a, b] = pair(), p = sPinch;
       const s = Math.max(full / 50, Math.min(full, p.v.s * p.dist / Math.max(10, Math.hypot(a.x - b.x, a.y - b.y))));
-      sView = s >= full ? null : { x0: p.cx - (p.cx - p.v.x0) * s / p.v.s, y0: p.cy - (p.cy - p.v.y0) * s / p.v.s, s };
+      const mid = toSvg({ clientX: (a.x + b.x) / 2, clientY: (a.y + b.y) / 2 });
+      sView = s >= full ? null : { x0: p.cx - (mid.x - ox) * s / side, y0: p.cy - (m.t + side - mid.y) * s / side, s };
       redraw();
       return;
     }
@@ -773,6 +778,7 @@ function drawScatter(rows, thr) {
     if (!sDrag.moved && Math.hypot(dx, dy) < 4) return;
     sDrag.moved = true;
     if (!sView) return; // nothing to pan at full extent
+    if (ev.pointerType === "touch" && !expanded) return; // on the page one finger scrolls, it doesn't pan
     const scale = svg.getScreenCTM().a * k;
     sView = { x0: sDrag.x0 - dx / scale, y0: sDrag.y0 + dy / scale, s: v.s };
     redraw();
@@ -781,7 +787,7 @@ function drawScatter(rows, thr) {
     sTouches.delete(ev.pointerId);
     if (sTouches.size < 2) sPinch = null;
     const d = sDrag; sDrag = null;
-    svg.releasePointerCapture?.(ev.pointerId);
+    try { svg.releasePointerCapture(ev.pointerId); } catch { /* not captured */ }
     if (ev.type === "pointerup" && d && !d.moved && !sTouches.size) { const q = nearest(ev); if (q) select(q.a.id); }
   };
   svg.ondblclick = () => { sView = null; redraw(); };
