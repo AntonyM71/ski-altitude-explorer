@@ -98,6 +98,10 @@ Each run downloads the OpenSkiMap data, runs `build_stats.py`, copies `index.htm
 
 `build_stats.py` stops with an error if it finds fewer than 3,000 ski areas or no Les Trois Vallées, so a broken download can't replace the live site.
 
+The raw OpenSkiMap download is cached for the current ISO week, so pushes during the week reuse it instead of downloading about 1 GB again. The Monday run falls in a new week and fetches fresh data. A build that runs for more than 45 minutes is stopped.
+
+Pages can be shared with their current view: the address bar keeps the selected domain, snow line, filters, grade switches, histogram view, sort, plot zoom and map position in the query string, and the **Share** button copies that link (or opens the share sheet on phones).
+
 ## Known issues and next steps
 
 - **Some linked domains aren't grouped in the data.** The Via Lattea (Montgenèvre, Claviere, Sansicario, Sestriere, Sauze d'Oulx) is one example, so its resorts are ranked separately. The plan is to detect links automatically where runs or lifts in different areas join, and to name known domains.

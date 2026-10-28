@@ -19,9 +19,18 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # a stalled OpenSkiMap download shouldn't hold the queue for GitHub's 6-hour default
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
+      # Reuse this ISO week's OpenSkiMap download, so pushes don't fetch ~1 GB each time.
+      # The Monday run starts a new week and so downloads fresh data.
+      - id: week
+        run: echo "key=openskimap-$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: ${{ steps.week.outputs.key }}
       - run: uv run python fetch.py
       - run: uv run python build_stats.py
       - name: Assemble site

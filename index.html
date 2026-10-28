@@ -179,7 +179,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
 .aboutbody { padding: 6px 20px 18px; max-height: min(72vh, 680px); overflow: auto; font-size: 14px; line-height: 1.55; }
 .aboutbody p { margin: 0 0 10px; max-width: 68ch; }
 .aboutbody h3 { margin: 16px 0 4px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 17px; }
-#aboutBtn { cursor: pointer; font-weight: 700; }
+#aboutBtn, #shareBtn { cursor: pointer; font-weight: 700; }
 /* The histogram scrolls with the page on touch; only the snow line handle takes the gesture. */
 #hist { touch-action: pan-y; }
 #hist .handle, #hist .handle * { cursor: ns-resize; touch-action: none; }
@@ -199,7 +199,8 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
   .bar { padding: 8px 12px; gap: 8px; }
   .bar > * { order: 2; }
   .wordmark { order: 0; font-size: 21px; margin-right: 0; }
-  #aboutBtn { order: 1; margin-left: auto; }
+  #shareBtn { order: 1; margin-left: auto; }
+  #aboutBtn { order: 1; }
   .pill { white-space: normal; }
   .pill select { max-width: 120px; }
   .snowline { order: 3; width: 100%; }
@@ -253,6 +254,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
       role="combobox" aria-expanded="false" aria-controls="findList" aria-autocomplete="list" aria-label="Find a domain or resort">
     <ul id="findList" role="listbox" hidden></ul>
   </div>
+  <button type="button" class="pill" id="shareBtn">Share</button>
   <button type="button" class="pill" id="aboutBtn" aria-haspopup="dialog">About</button>
 </header>
 
@@ -418,6 +420,8 @@ fetch("data/ski_area_stats.json", { cache: "no-cache" }).then(r => r.json()).the
   if (d.built) $("#built").textContent = ` Data last rebuilt ${d.built}.`;
   for (const a of DATA) { a.cc = a.countries.join(", "); a.label = a.name || "(unnamed)"; }
   buildRegionSelect();
+  applyUrlState();
+  $("#shareBtn").addEventListener("click", share);
   ["thr", "minKm", "domains"].forEach(id => $("#" + id).addEventListener("input", render));
   $("#region").addEventListener("input", () => { unchecked.clear(); pinned = false; render(); });
   $("#ccAll").addEventListener("click", () => { unchecked.clear(); render(); });
@@ -564,6 +568,83 @@ function render() {
   drawScatter(rows, thr);
   drawDetail(sel, thr);
   updateMap(rows, sel, thr);
+  syncUrl();
+}
+
+/* ---------- Shareable links: the page's state lives in the query string ---------- */
+const SORT_KEYS = ["rank", "label", "cc", "fkm", "above", "pct", "median_alt"];
+let initialCamera = null; // a map position from a shared link, applied once the domain's runs load
+
+// Read a shared link. Anything missing or invalid falls back to the default.
+function applyUrlState() {
+  const p = new URLSearchParams(location.search), num = k => Number(p.get(k));
+  const sel = $("#region");
+  if (p.has("region") && [...sel.options].some(o => o.value === p.get("region"))) sel.value = p.get("region");
+  if (p.get("x")) for (const c of p.get("x").split(",")) unchecked.add(c);
+  if (p.has("min") && Number.isFinite(num("min"))) $("#minKm").value = Math.max(0, num("min"));
+  if (p.get("linked") === "0") $("#domains").checked = false;
+  if (Number.isFinite(num("snow")) && p.has("snow")) $("#thr").value = Math.min(3500, Math.max(500, Math.round(num("snow") / 100) * 100));
+  if (p.get("off")) for (const d of p.get("off")) if (GRADES[+d]) gradesOff.add(+d);
+  if (p.get("view") === "grade") {
+    histMode = "grade";
+    document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mode === "grade"));
+  }
+  if (p.get("sort")) {
+    const [k, dir] = p.get("sort").split(".");
+    if (SORT_KEYS.includes(k)) { sortKey = k; sortDir = dir === "asc" ? 1 : -1; }
+  }
+  const a = p.get("d") && DATA.find(x => x.id === p.get("d"));
+  if (a) { selectedId = a.id; pinned = true; } // keep it shown even if the filters would hide it
+  const z = (p.get("zoom") || "").split(",").map(Number);
+  if (z.length === 3 && z.every(Number.isFinite) && z[2] > 0) sView = { x0: z[0], y0: z[1], s: z[2] };
+  const c = (p.get("map") || "").split(",").map(Number);
+  if (c.length === 3 && c.every(Number.isFinite)) initialCamera = { center: [c[0], c[1]], zoom: c[2] };
+}
+
+// Write the current state into the address bar (without adding history entries), defaults left out.
+let syncTimer;
+function syncUrl() { clearTimeout(syncTimer); syncTimer = setTimeout(writeUrl, 250); }
+function writeUrl() {
+  if (!DATA) return;
+  const p = new URLSearchParams();
+  if (selectedId) p.set("d", selectedId);
+  if (+$("#thr").value !== 2000) p.set("snow", $("#thr").value);
+  if ($("#region").value !== "Alps") p.set("region", $("#region").value);
+  if (unchecked.size) p.set("x", [...unchecked].sort().join(","));
+  if ((+$("#minKm").value || 0) !== 30) p.set("min", +$("#minKm").value || 0);
+  if (!$("#domains").checked) p.set("linked", "0");
+  if (gradesOff.size) p.set("off", [...gradesOff].sort().join(""));
+  if (histMode === "grade") p.set("view", "grade");
+  if (sortKey !== "above" || sortDir !== -1) p.set("sort", `${sortKey}.${sortDir > 0 ? "asc" : "desc"}`);
+  if (sView) p.set("zoom", [sView.x0, sView.y0, sView.s].map(v => +v.toFixed(1)).join(","));
+  if (map && mapReady && userMoved) {
+    const c = map.getCenter();
+    p.set("map", [c.lng.toFixed(4), c.lat.toFixed(4), map.getZoom().toFixed(2)].join(","));
+  }
+  const q = p.toString().replace(/%2C/g, ",");
+  history.replaceState(null, "", location.pathname + (q ? "?" + q : "") + location.hash);
+}
+
+// Share the current view: the phone's share sheet on touch screens, otherwise copy the link.
+async function share() {
+  writeUrl();
+  const url = location.href, btn = $("#shareBtn");
+  const title = `${$("#dName").textContent} on Ski Altitude Explorer`;
+  const flash = text => { btn.textContent = text; setTimeout(() => { btn.textContent = "Share"; }, 2000); };
+  if (TOUCH && navigator.share) {
+    try { await navigator.share({ title, url }); } catch { /* cancelled */ }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    return flash("Link copied");
+  } catch { /* no clipboard API on plain http; fall through */ }
+  const ta = Object.assign(document.createElement("textarea"), { value: url });
+  ta.style.cssText = "position:fixed;opacity:0";
+  document.body.appendChild(ta); ta.select();
+  const ok = document.execCommand("copy"); // the older copy route works without https
+  ta.remove();
+  if (ok) flash("Link copied"); else window.prompt("Copy this link", url);
 }
 
 function select(id) { selectedId = id; pinned = false; render(); }
@@ -640,6 +721,7 @@ const tickRange = (lo, hi, n) => {
 
 function drawScatter(rows, thr) {
   sLast = [rows, thr];
+  syncUrl(); // zooming redraws only the plot, so keep the link current from here too
   const svg = $("#scatter"); svg.textContent = "";
   // A square plot on one km scale, so the diagonal is a true 45°. It is capped at 370 px tall
   // (the index below keeps its room) unless the plate is expanded, and centred.
@@ -1221,6 +1303,7 @@ function initMap() {
     if (runsBounds && !userMoved) map.fitBounds(runsBounds, { padding: 30, duration: 0, maxZoom: 14 });
   }).observe($("#map"));
   map.on("movestart", e => { if (e.originalEvent) { userMoved = true; $("#mapReset").disabled = false; } });
+  map.on("moveend", () => syncUrl());
   // Add our layers once the style is ready, rather than waiting for every relief tile to render.
   const setup = () => {
     if (mapReady) return;
@@ -1338,8 +1421,16 @@ function updateMap(rows, sel, thr) {
       const b = new maplibregl.LngLatBounds();
       for (const r of list) for (const line of r.c) for (const p of line) b.extend([p[0], p[1]]);
       map.resize();
-      map.fitBounds(b, { padding: 30, duration: fittedId ? 700 : 0, maxZoom: 14 });
-      fittedId = id; runsBounds = b; userMoved = false; $("#mapReset").disabled = true;
+      const firstFit = !fittedId;
+      fittedId = id; runsBounds = b;
+      if (initialCamera) {
+        // A shared link's map position wins over framing the domain.
+        map.jumpTo(initialCamera); initialCamera = null;
+        userMoved = true; $("#mapReset").disabled = false;
+      } else {
+        map.fitBounds(b, { padding: 30, duration: firstFit ? 0 : 700, maxZoom: 14 });
+        userMoved = false; $("#mapReset").disabled = true;
+      }
     }
   }).catch(() => {});
 }
