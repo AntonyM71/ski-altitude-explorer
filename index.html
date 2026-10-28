@@ -35,6 +35,7 @@
   --gloss: linear-gradient(180deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .08) 50%, rgba(255, 255, 255, .02) 51%, rgba(255, 255, 255, .12) 100%);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* class display rules (.morebtn and others) must not override it */
 html, body { height: 100%; }
 body {
   margin: 0; color: var(--ink); background-color: var(--page);
@@ -246,6 +247,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--aero); }
   background: var(--sheen), var(--glass-solid);
 }
 .plate.expanded svg { margin: 0 auto; }
+.plate.expanded > * { flex-shrink: 0; } /* the title bar keeps its height, however much it wraps */
 body.mapmode .col > :not(#mapPlate) { opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s .25s; }
 body.mapmode #mapPlate { position: fixed; inset: 84px 12px 12px; z-index: 40; }
 body.mapmode .maplegend .modalsnow { display: inline-flex; }
@@ -871,6 +873,14 @@ function drawTable(rows) {
   more.textContent = `Show ${Math.min(20, left)} more of ${rows.length}`;
 }
 
+// Height left for a chart in an expanded window, after its title bar and anything else stacked
+// in the window. On phones the title bar wraps onto several rows, so this can't be a constant.
+function roomFor(card, chart) {
+  let used = 0;
+  for (const c of card.children) if (c !== chart && c.offsetParent && getComputedStyle(c).position !== "absolute") used += c.offsetHeight;
+  return card.clientHeight - used - 8;
+}
+
 function placeTip(tip, card, ev) {
   const r = card.getBoundingClientRect();
   tip.style.display = "block";
@@ -902,7 +912,7 @@ function drawScatter(rows, thr) {
   // A square plot on one km scale, so the diagonal is a true 45°. It is capped at 370 px tall
   // (the index below keeps its room) unless the plate is expanded, and centred.
   const card = $("#scatterCard"), expanded = card.classList.contains("expanded");
-  const W = Math.max(300, card.clientWidth - 2), H = expanded ? card.clientHeight - 44 : 370, m = { t: 22, r: 14, b: 30, l: 42 };
+  const W = Math.max(300, card.clientWidth - 2), H = expanded ? Math.max(200, roomFor(card, svg)) : 370, m = { t: 22, r: 14, b: 30, l: 42 };
   const full = niceMax(Math.max(10, ...rows.map(a => a.fkm)));
   sFull = full;
   if (sView && sView.s >= full) sView = null;
@@ -1074,7 +1084,7 @@ function drawDetail(a, thr) {
   const zMin = Math.min(...zs), zMax = Math.max(...zs);
   const bands = []; for (let z = zMax; z >= zMin; z -= BIN) bands.push(z);
   const W = Math.max(320, $("#histCard").clientWidth - 2);
-  const card = $("#histCard"), H = card.classList.contains("expanded") ? card.clientHeight - 44
+  const card = $("#histCard"), H = card.classList.contains("expanded") ? Math.max(150, roomFor(card, $("#hist")))
     : Math.max(150, Math.min(250, bands.length * 9 + 40)), m = { t: 6, r: 130, b: 26, l: 58 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const bh = ih / bands.length, gap = Math.min(2, bh * 0.2);
