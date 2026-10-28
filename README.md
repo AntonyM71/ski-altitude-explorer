@@ -10,7 +10,7 @@ A resort can advertise 250 km of pistes that are mostly low, while a smaller one
 
 The page is split in two.
 
-**Left: every domain that matches your filters** (region, countries, minimum size, linked domains only, piste grades)
+**Left: every domain that matches your filters** (region, countries, minimum size, linked domains, piste grades)
 
 - **Size against high piste**: total piste km against km above the snow line, on one square scale so the diagonal is a true 45°. Dots are coloured by median altitude, and dotted lines mark 25%, 50% and 75% of piste above the snow line. Scroll to zoom, drag to pan.
 - **Index**: the same domains ranked by km above the snow line, with an altitude profile strip per row.
@@ -21,7 +21,7 @@ The page is split in two.
 - **Piste map** (MapLibre): pistes in grade colours, faded below the snow line, over altitude-coloured relief with hillshading. Lifts are drawn in piste-map convention. Click a piste for its elevation and gradient profile.
 - **Piste km by altitude**: a histogram in 100 m bands, as one total or stacked by grade. Drag the orange line to move the snow line.
 
-Each plate can expand to full screen, and the snow line can be changed from any of them.
+On a computer the piste map fills the page behind frosted glass windows. Each window can be minimised to its title bar or expanded to full screen, and the map's own expand button moves the other windows aside. The snow line can be changed from any expanded view.
 
 ## How it's measured
 
@@ -55,7 +55,7 @@ This site uses the horizontal length of what is mapped in OpenStreetMap, measure
 
 ### Linked domains and pass networks
 
-Domains come from OpenSkiMap, which lists both linked areas (Les Trois Vallées) and the resorts inside them (Méribel, Val Thorens). The build marks area B as a sub-area of A when at least 80% of B's runs are also in A. "Linked domains only" then shows just the top level.
+Domains come from OpenSkiMap, which lists both linked areas (Les Trois Vallées) and the resorts inside them (Méribel, Val Thorens). The build marks area B as a sub-area of A when at least 80% of B's runs are also in A. "Linked domains" then shows just the top level.
 
 Lift-pass networks of unlinked valleys would otherwise top the ranking. These are listed by hand in `PASS_NETWORKS` in `build_stats.py` (currently Dolomiti Superski and Ski amadé). They are never treated as a parent, and are hidden in the linked view.
 
@@ -108,7 +108,7 @@ Pages can be shared with their current view: the address bar keeps the selected 
 - **Pistes mapped as areas aren't counted**, which undercounts open bowls and some glacier skiing.
 - **A domain's region comes from its first listed country,** so a few cross-border domains sit in a neighbouring region.
 - **Grade colours use the European convention everywhere.**
-- **No dark mode;** the atlas style is light only.
+- **One theme:** the glass style is dark only.
 
 ## Fixing or adding data
 

@@ -6,199 +6,326 @@
 <title>Ski Altitude Explorer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sofia+Sans:wght@400..900&family=Sofia+Sans+Condensed:wght@400..900&family=Source+Serif+4:ital,wght@1,400;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Figtree:ital,wght@0,400..700;1,400..500&display=swap" rel="stylesheet">
 <link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
 <style>
+/* Glacier glass: Aero windows over the live terrain. */
 :root {
-  color-scheme: light;
-  --paper: #eef0ea;
-  --plate: #f6f7f2;
-  --ink: #232a26;
-  --slate: #4f5852;
-  --muted: #646d67;
-  --line: #c9cdc2;
-  --soft: #dfe2d9;
-  --tint: #e3eaf0;
-  --marker: #d9542b;
-  --high: #2f78c4;
-  --low: #7a4a22;
-  --contour: #8f6436;
+  color-scheme: dark;
+  --page: #0c1a2b;
+  --glass: rgba(14, 32, 56, .52);
+  --glass-solid: rgba(16, 36, 62, .94);
+  --edge: rgba(191, 228, 255, .34);
+  --edge-soft: rgba(191, 228, 255, .14);
+  --ink: #eaf6ff;                   /* text, and lines drawn in charts */
+  --slate: #a9c6dd;                 /* secondary text, axis labels */
+  --muted: #7f9bb3;
+  --line: rgba(191, 228, 255, .3);
+  --soft: rgba(191, 228, 255, .1);  /* grid lines and row rules */
+  --tint: rgba(92, 196, 255, .2);   /* selection */
+  --aero: #5cc4ff;
+  --marker: #ff8a3d;                /* the snow line: the only warm colour */
+  --marker-hi: #ffb27f;
+  --high: #8fd6ff;
+  --low: #ffb27f;
+  --contour: rgba(169, 198, 221, .75);
+  --halo: 0 1px 1px rgba(0, 0, 0, .85), 0 0 6px rgba(0, 0, 0, .55); /* Vista's dark glow behind light text */
+  --sheen: linear-gradient(180deg, rgba(255, 255, 255, .17) 0%, rgba(255, 255, 255, .05) 40%, rgba(255, 255, 255, 0) 41%);
+  --gloss: linear-gradient(180deg, rgba(255, 255, 255, .3) 0%, rgba(255, 255, 255, .08) 50%, rgba(255, 255, 255, .02) 51%, rgba(255, 255, 255, .12) 100%);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-  margin: 0; background: var(--paper); color: var(--ink);
-  font-family: "Sofia Sans", system-ui, sans-serif; font-size: 13px; line-height: 1.4;
-  font-variant-numeric: tabular-nums;
+  margin: 0; color: var(--ink); background-color: var(--page);
+  background-image: radial-gradient(1200px 600px at 15% -10%, rgba(92, 196, 255, .25), transparent 60%), linear-gradient(180deg, #13263c, #0a1624);
+  background-attachment: fixed;
+  font-family: Figtree, system-ui, sans-serif; font-size: 13px; line-height: 1.4;
+  font-variant-numeric: tabular-nums; text-shadow: var(--halo);
   display: grid; grid-template-rows: auto minmax(0, 1fr);
 }
-button, input, select { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--high); outline-offset: 2px; }
-a { color: #3d5f7a; }
-.cn { font-family: "Sofia Sans Condensed", sans-serif; }
+button, input, select { font: inherit; color: inherit; text-shadow: inherit; }
+option { background: #14283f; color: var(--ink); }
+:focus-visible { outline: 2px solid var(--aero); outline-offset: 2px; }
+a { color: #8fd6ff; }
+.cn { font-family: "Chakra Petch", sans-serif; }
+
+/* The Aero surface: tinted, blurred glass with a glossy top half and a luminous edge. */
+.glass, .plate, .bar, .pop, .find ul, .tip, .dlg {
+  background: var(--sheen), var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--edge); border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 18px 44px rgba(2, 10, 22, .5);
+}
+/* Glossy capsule and caption buttons. */
+.pill, .iconbtn, .morebtn {
+  border: 1px solid rgba(255, 255, 255, .34); background: var(--gloss);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 1px 3px rgba(0, 0, 0, .3);
+}
+.pill:hover, .iconbtn:hover:not(:disabled), .morebtn:hover, .gradetoggle:hover {
+  border-color: rgba(191, 228, 255, .75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .55), 0 0 12px rgba(92, 196, 255, .55);
+}
 
 /* Top bar */
-.bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
-.wordmark { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 24px; letter-spacing: -0.01em; margin-right: 12px; white-space: nowrap; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--ink); background: var(--plate); white-space: nowrap; }
-button.pill { cursor: pointer; }
-.pill select { border: 0; background: transparent; font-weight: 700; padding: 0; max-width: 150px; }
-.pill input[type=number] { width: 52px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font-weight: 700; padding: 0 2px; }
-input[type=checkbox] { accent-color: var(--high); margin: 0; }
-.snowline { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.snowline label { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; }
-.snowline input { width: 140px; accent-color: var(--marker); }
-.snowline output { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 20px; color: var(--marker); min-width: 5.5ch; }
-.popwrap { position: relative; }
-.pop {
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; min-width: 220px; max-height: 360px; overflow: auto;
-  background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 8px 24px rgb(20 30 25 / .18); padding: 8px 10px;
+/* Above the windows, so its menus drop over them (each glass pane is its own stacking context). */
+.bar { position: relative; z-index: 44; margin: 10px 12px 0; padding: 9px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wordmark {
+  font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 20px; margin-right: 6px; white-space: nowrap;
+  text-shadow: var(--halo), 0 0 22px rgba(92, 196, 255, .6);
 }
-.pop .acts { display: flex; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--soft); margin-bottom: 4px; }
-.pop .acts button { border: 0; background: none; padding: 0; color: #3d5f7a; cursor: pointer; text-decoration: underline; }
+.pill { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; border-radius: 999px; white-space: nowrap; font-weight: 500; }
+button.pill { cursor: pointer; }
+.pill select { border: 0; background: transparent; font-weight: 700; padding: 0; max-width: 150px; field-sizing: content; }
+.pill input[type=number] { width: 52px; border: 0; border-bottom: 1px solid var(--line); background: transparent; font-weight: 700; padding: 0 2px; }
+input[type=checkbox] { accent-color: var(--aero); margin: 0; }
+input[type=range] { accent-color: var(--marker); filter: drop-shadow(0 0 6px rgba(255, 138, 61, .55)); }
+.snowline { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.snowline label { font-family: "Chakra Petch", sans-serif; font-weight: 600; color: var(--slate); }
+.snowline input { width: 110px; }
+.snowline output {
+  font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 22px; color: var(--marker-hi); min-width: 5.5ch;
+  text-shadow: var(--halo), 0 0 14px rgba(255, 138, 61, .7);
+}
+.popwrap { position: relative; }
+.pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; min-width: 220px; max-height: 360px; overflow: auto; padding: 8px 12px; background: var(--sheen), var(--glass-solid); }
+.pop .acts { display: flex; gap: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 4px; }
+.pop .acts button { border: 0; background: none; padding: 0; color: #8fd6ff; cursor: pointer; text-decoration: underline; }
 .pop label { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
 .pop label:has(input:not(:checked)) { color: var(--muted); }
 .pop .n { color: var(--muted); }
-.find { position: relative; width: 190px; }
-.find input { width: 100%; padding: 5px 10px; border: 1px solid var(--ink); background: var(--plate); }
-.find ul {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 60; margin: 0; padding: 4px 0; list-style: none;
-  background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 8px 24px rgb(20 30 25 / .18);
+.regionpop { padding: 6px; min-width: 240px; }
+.regionpop .group { padding: 8px 10px 2px; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 12px; color: var(--slate); }
+.regionpop button { display: block; width: 100%; text-align: left; border: 0; border-radius: 6px; background: none; padding: 5px 10px; cursor: pointer; }
+.regionpop .group ~ button { padding-left: 20px; }
+.regionpop button:hover { background: rgba(255, 255, 255, .08); }
+.regionpop button[aria-selected="true"] { background: var(--tint); box-shadow: inset 0 0 0 1px rgba(92, 196, 255, .5); }
+#regionBtn b { font-weight: 700; }
+#regionBtn svg { opacity: .8; }
+.find { position: relative; width: 170px; }
+.find input {
+  width: 100%; height: 30px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .3);
+  background: rgba(255, 255, 255, .08); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .4);
 }
-.find li { padding: 5px 10px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 1px 12px; }
+.find input::placeholder { color: var(--slate); }
+.find ul { position: absolute; top: calc(100% + 6px); left: 0; min-width: 300px; z-index: 60; margin: 0; padding: 4px 0; list-style: none; background: var(--sheen), var(--glass-solid); }
+.find li { padding: 5px 12px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 1px 12px; }
 .find li small { grid-column: 1; color: var(--muted); font-size: 12px; }
 .find li .km { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: var(--slate); }
 .find li[aria-selected="true"] { background: var(--tint); }
 .find .none { color: var(--muted); cursor: default; }
 
-/* Two columns */
-.split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 22px; padding: 10px 18px 16px; min-height: 0; }
-.col { display: flex; flex-direction: column; gap: 14px; min-height: 0; min-width: 0; }
-.colhead { font-family: "Sofia Sans Condensed", sans-serif; font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 -4px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.colhead b { color: var(--ink); }
-.plate { position: relative; background: var(--plate); border: 1px solid var(--ink); box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--ink); min-width: 0; }
-.phead { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px 4px; }
-.phead b { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 16px; white-space: nowrap; }
-.phead span { color: var(--muted); font-size: 12px; }
-svg { display: block; overflow: visible; }
-svg text { font-family: "Sofia Sans Condensed", sans-serif; font-size: 11px; fill: var(--slate); }
-.tip {
-  position: absolute; pointer-events: none; z-index: 20; display: none; white-space: nowrap;
-  background: var(--ink); color: var(--plate); padding: 5px 8px; font-size: 12px;
+/* Two columns, one 12 px rhythm between every window */
+.split { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 12px; padding: 12px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
+.col > * { transition: opacity .25s; }
+#crumb { display: none; }
+.plate { position: relative; min-width: 0; }
+.phead { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 8px 4px 14px; border-bottom: 1px solid var(--edge-soft); }
+.phead b {
+  font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 15px; white-space: nowrap;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .9), 0 0 8px rgba(0, 0, 0, .65);
 }
+.phead span { color: var(--slate); font-size: 12px; }
+#plotCount { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chiprow { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 12px 0; }
+svg { display: block; overflow: visible; }
+svg text {
+  font-family: Figtree, sans-serif; font-size: 11px; fill: var(--slate);
+  paint-order: stroke; stroke: rgba(4, 10, 20, .7); stroke-width: 2.6px; stroke-linejoin: round; /* the halo, for SVG */
+}
+.tip { position: absolute; pointer-events: none; z-index: 20; display: none; white-space: nowrap; padding: 6px 10px; font-size: 12px; border-radius: 8px; background: var(--sheen), var(--glass-solid); }
 .tip b { display: block; }
 
+/* Caption buttons: the window controls in each title bar */
+.iconbtn {
+  margin-left: auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-width: 30px; height: 24px; padding: 0 8px; border-radius: 5px; cursor: pointer; font-weight: 600;
+}
+.iconbtn:disabled { opacity: .35; cursor: default; }
+.phead .iconbtn { align-self: center; }
+.zoombtn { font-size: 16px; line-height: 1; }
+.zoombtn + .zoombtn, .zoombtn + .resetbtn { margin-left: 4px; }
+.resetbtn ~ .iconbtn, .resetbtn ~ .modalsnow { margin-left: 6px; }
+/* Minimise and expand sit together at the right of each title bar as one caption-button pair. */
+.caps { display: inline-flex; flex-shrink: 0; align-self: center; margin-left: auto; }
+.resetbtn ~ .caps, .seg ~ .caps, .expanded .modalsnow ~ .caps { margin-left: 12px; }
+.caps .iconbtn { margin: 0; border-radius: 0; }
+.caps .iconbtn:first-child { border-radius: 5px 0 0 5px; }
+.caps .iconbtn:last-child { border-radius: 0 5px 5px 0; border-left-width: 0; }
+.expanded .caps .expandbtn, .min .caps .minbtn { border-radius: 5px; border-left-width: 1px; }
+/* A minimised window folds to its title bar, leaving more of the map in view. */
+.plate.min > :not(.phead) { display: none; }
+.plate.min .phead { border-bottom: 0; }
+.plate.min .phead > :not(b, span, .caps), .plate.min .expandbtn { display: none; }
+.plate.min .caps { margin-left: auto; } /* the controls it normally follows are hidden */
+.indexplate.min { flex: none; min-height: 0; }
+.minbtn .r, .min .minbtn .m { display: none; }
+.min .minbtn .r { display: inline; }
+.expanded .minbtn { display: none; }
+
 /* Index */
-.indexplate { flex: 1; display: flex; flex-direction: column; min-height: 160px; }
+.indexplate { flex: 1; display: flex; flex-direction: column; min-height: 160px; overflow: hidden; }
 .tablewrap { flex: 1; overflow: auto; min-height: 0; }
 table { width: 100%; border-collapse: collapse; }
-th, td { padding: 4px 6px; text-align: right; white-space: nowrap; }
+th, td { padding: 5px 7px; text-align: right; white-space: nowrap; }
 th {
-  position: sticky; top: 0; z-index: 2; background: var(--plate); border-bottom: 1px solid var(--ink);
-  font-family: "Sofia Sans Condensed", sans-serif; font-weight: 700; color: var(--slate); cursor: pointer; user-select: none;
+  position: sticky; top: 0; z-index: 2; background: rgba(16, 36, 62, .94); border-bottom: 1px solid var(--edge-soft);
+  font-weight: 600; font-size: 12px; color: var(--slate); cursor: pointer; user-select: none;
 }
 th[aria-sort]::after { content: "▾"; margin-left: 3px; }
 th[aria-sort="ascending"]::after { content: "▴"; }
-th.snowcol { color: var(--ink); box-shadow: inset 0 -3px 0 var(--marker); }
+th.snowcol { color: var(--marker-hi); box-shadow: inset 0 -2px 0 var(--marker); }
 th.nosort { cursor: default; }
 td { border-bottom: 1px solid var(--soft); }
 .l { text-align: left; }
 td.rank { color: var(--muted); }
-td.name { font-weight: 700; white-space: normal; overflow-wrap: anywhere; min-width: 120px; }
+td.name { font-weight: 600; white-space: normal; overflow-wrap: anywhere; min-width: 120px; }
 td .cc { color: var(--muted); font-weight: 400; font-size: 12px; }
-td.strong { font-weight: 800; }
+td.strong { font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 14px; }
 tbody tr { cursor: pointer; }
-tbody tr:hover td { background: #fbfbf8; }
+tbody tr:hover td { background: rgba(255, 255, 255, .05); }
 tbody tr.sel td { background: var(--tint); }
-tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
+tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--aero); }
 .empty { padding: 24px 14px; color: var(--slate); }
-.morebtn { display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 8px; border: 1px solid var(--ink); background: var(--plate); font-weight: 700; cursor: pointer; }
-.credit { padding: 6px 12px; border-top: 1px solid var(--soft); color: var(--muted); font-size: 11px; }
+.morebtn { display: block; width: calc(100% - 24px); margin: 8px 12px; height: 32px; border-radius: 999px; font-weight: 600; cursor: pointer; }
+/* The status bar along the bottom of the index window, as in an Explorer window */
+.statusbar {
+  display: flex; align-items: center; gap: 4px 12px; flex-wrap: wrap; min-height: 30px; padding: 5px 14px; font-size: 12px; color: var(--slate);
+  border-top: 1px solid var(--edge-soft); background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(255, 255, 255, .03));
+}
+.statusbar b { color: var(--ink); }
+.statusbar a { margin-left: auto; }
 
 /* Selected domain */
-.titlecard { display: flex; align-items: flex-end; gap: 20px; padding: 10px 16px; }
+.titlecard { display: flex; align-items: center; gap: 20px; padding: 12px 18px; }
 .titlecard .where { font-size: 12px; color: var(--slate); }
-.titlecard h1 { margin: 0; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 30px; line-height: 1; }
+.titlecard h1 {
+  margin: 0; font-family: "Chakra Petch", sans-serif; font-weight: 700; font-size: 30px; line-height: 1.05;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, .9), 0 0 10px rgba(0, 0, 0, .7), 0 0 24px rgba(92, 196, 255, .5);
+}
 .stats { display: flex; margin-left: auto; }
-.stats div { padding: 0 12px; border-left: 1px solid var(--soft); }
+.stats div { padding: 0 14px; border-left: 1px solid var(--edge-soft); }
 .stats div:first-child { border-left: 0; }
-.stats b { display: block; font-family: "Sofia Sans Condensed", sans-serif; font-size: 22px; line-height: 1.1; white-space: nowrap; }
+.stats div:last-child { padding-right: 0; }
+.stats b { display: block; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 22px; line-height: 1.1; white-space: nowrap; }
 .stats span { font-size: 12px; color: var(--slate); white-space: nowrap; }
-.stats .above b { color: var(--high); }
-.mapplate { flex: 1; display: flex; flex-direction: column; min-height: 260px; }
-.mapplate .phead { border-bottom: 1px solid var(--ink); padding-bottom: 6px; }
-.legend { display: inline-flex; gap: 12px; align-items: center; }
-.legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 4px; }
-.iconbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding: 3px 10px; border: 1px solid var(--ink); background: var(--plate); cursor: pointer; }
-#map { flex: 1; min-height: 0; }
+.stats .above b { color: #8fd6ff; text-shadow: var(--halo), 0 0 14px rgba(92, 196, 255, .7); }
+
+/* Map. On wide screens the live map is the page background and this area is an open window onto it. */
+.mapplate { flex: 1; position: relative; min-height: 260px; }
+#map { position: absolute; inset: 0; border-radius: 12px; overflow: hidden; }
+.mapshade { display: none; }
+.mapframe i { position: absolute; width: 22px; height: 22px; border: 0 solid rgba(92, 196, 255, .75); filter: drop-shadow(0 0 4px rgba(92, 196, 255, .7)); pointer-events: none; }
+.mapframe .tl { left: 0; top: 0; border-width: 2px 0 0 2px; border-top-left-radius: 8px; }
+.mapframe .tr { right: 0; top: 0; border-width: 2px 2px 0 0; border-top-right-radius: 8px; }
+.mapframe .bl { left: 0; bottom: 0; border-width: 0 0 2px 2px; border-bottom-left-radius: 8px; }
+.mapframe .br { right: 0; bottom: 0; border-width: 0 2px 2px 0; border-bottom-right-radius: 8px; }
+.mapctrls { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: 10px; }
+.mapctrls .iconbtn { margin: 0; width: 30px; height: 28px; padding: 0; }
+.maplegend {
+  position: absolute; left: 10px; bottom: 10px; z-index: 3; max-width: calc(100% - 20px);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 6px 14px; border-radius: 16px; font-size: 12px;
+}
+.legend { display: inline-flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+.legend .faded { color: var(--slate); }
+.lifttoggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; border-left: 1px solid var(--edge-soft); padding-left: 12px; }
+.attrib { color: var(--muted); font-size: 11px; }
+.attrib a { color: var(--slate); }
+.maplibregl-popup-content {
+  font-family: Figtree, sans-serif; font-size: 12px; padding: 6px 10px; color: var(--ink); text-shadow: var(--halo); border-radius: 8px;
+  background: var(--sheen), var(--glass-solid); border: 1px solid var(--edge); box-shadow: 0 10px 30px rgba(2, 10, 22, .5);
+}
+.maplibregl-popup-tip { display: none; }
+
+/* Expanded windows, and the expanded map */
 .plate.expanded {
   position: fixed; inset: 28px; z-index: 50; display: flex; flex-direction: column; max-height: none;
-  height: auto; /* fill to the inset edges, overriding the map plate's fixed height on narrow screens */
-  box-shadow: 0 0 0 5px var(--plate), 0 0 0 6px var(--ink), 0 24px 60px rgb(0 0 0 / .35);
+  height: auto; /* fill to the inset edges, overriding fixed heights on narrow screens */
+  background: var(--sheen), var(--glass-solid);
 }
 .plate.expanded svg { margin: 0 auto; }
-.seg + .iconbtn { margin-left: 8px; }
-/* Snow line control repeated in overlays; it mirrors the top bar's slider. */
-.modalsnow { display: none; align-items: center; gap: 8px; margin-left: auto; align-self: center; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; white-space: nowrap; }
+body.mapmode .col > :not(#mapPlate) { opacity: 0; visibility: hidden; transition: opacity .25s, visibility 0s .25s; }
+body.mapmode #mapPlate { position: fixed; inset: 84px 12px 12px; z-index: 40; }
+body.mapmode .maplegend .modalsnow { display: inline-flex; }
+.modalsnow { display: none; align-items: center; gap: 8px; margin-left: auto; font-family: "Chakra Petch", sans-serif; font-weight: 600; white-space: nowrap; }
 .expanded .modalsnow, .dlg .modalsnow { display: inline-flex; }
-.modalsnow input { width: 180px; accent-color: var(--marker); }
-.modalsnow output { color: var(--marker); font-weight: 900; font-size: 17px; min-width: 5.5ch; }
-.seg ~ .modalsnow, .modalsnow + .iconbtn, .modalsnow + .seg { margin-left: 8px; }
+.modalsnow input { width: 170px; }
+.modalsnow output { color: var(--marker-hi); font-weight: 700; font-size: 17px; min-width: 5.5ch; text-shadow: var(--halo), 0 0 12px rgba(255, 138, 61, .7); }
+.seg ~ .modalsnow, .modalsnow + .seg { margin-left: 8px; }
 .expandbtn span { display: none; }
 .expanded .expandbtn span { display: inline; }
-#scatter { touch-action: none; user-select: none; }
-.lifttoggle { display: inline-flex; align-items: center; gap: 5px; align-self: center; font-size: 12px; white-space: nowrap; cursor: pointer; }
-.resetbtn { padding: 3px 7px; }
-.resetbtn:disabled { opacity: .35; cursor: default; }
-.resetbtn ~ .iconbtn, .resetbtn ~ .modalsnow { margin-left: 8px; }
-.phead .iconbtn { align-self: center; }
-#backdrop { position: fixed; inset: 0; z-index: 45; background: rgb(28 33 30 / .6); }
-.maplibregl-popup-content { font-family: "Sofia Sans", sans-serif; font-size: 12px; padding: 6px 9px; border-radius: 0; border: 1px solid var(--ink); }
-.seg { display: inline-flex; border: 1px solid var(--ink); margin-left: auto; align-self: center; }
-.seg { flex-shrink: 0; }
-.seg button { white-space: nowrap; border: 0; background: var(--plate); padding: 2px 10px; cursor: pointer; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; }
-.seg button[aria-pressed="true"] { background: var(--ink); color: var(--plate); }
-.gradekey { display: inline-flex; gap: 10px; flex-wrap: wrap; }
-.gradekey i { display: inline-block; width: 12px; height: 10px; vertical-align: -1px; margin-right: 5px; opacity: .6; border: 1px solid rgb(0 0 0 / .25); }
-.gradetoggle { border: 1px solid var(--line); background: var(--plate); padding: 0 6px; cursor: pointer; font-size: 12px; color: var(--ink); }
-.gradetoggle[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; border-style: dashed; }
-.gradetoggle[aria-pressed="false"] i { opacity: .15; }
-.dlg { width: min(820px, calc(100vw - 32px)); padding: 0; color: var(--ink); }
-.dlg::backdrop { background: rgb(28 33 30 / .6); }
-.dlg .phead { border-bottom: 1px solid var(--ink); padding-bottom: 7px; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ink) !important; font-size: 12px; }
-.chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
-.rstats { display: flex; flex-wrap: wrap; padding: 10px 12px 2px; }
-.rstats div { padding: 0 14px; border-left: 1px solid var(--soft); }
+#backdrop { position: fixed; inset: 0; z-index: 45; background: rgba(4, 10, 20, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+
+/* Histogram view switch and grade toggles */
+.seg { display: inline-flex; border: 1px solid rgba(255, 255, 255, .3); border-radius: 6px; overflow: hidden; margin-left: auto; align-self: center; flex-shrink: 0; }
+.seg button { white-space: nowrap; border: 0; background: rgba(255, 255, 255, .06); padding: 2px 10px; cursor: pointer; font-weight: 600; font-size: 12px; }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, #7fd6ff, #2e8fd6); color: #04203a; text-shadow: none; }
+.gradekey { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.gradekey i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
+.gradetoggle {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; cursor: pointer; font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .07);
+}
+.gradetoggle[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; border-style: dashed; background: transparent; }
+.gradetoggle[aria-pressed="false"] i { opacity: .25; }
+#hist .handle { filter: drop-shadow(0 0 5px rgba(255, 138, 61, .85)); }
+.selring { filter: drop-shadow(0 0 5px rgba(255, 138, 61, .95)); }
+
+/* Dialogs */
+.dlg { width: min(820px, calc(100vw - 32px)); padding: 0; color: var(--ink); background: var(--sheen), var(--glass-solid); }
+.dlg::backdrop { background: rgba(4, 10, 20, .55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.dlg .phead { align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink) !important; font-size: 12px; }
+.chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px rgba(255, 255, 255, .45); }
+.rstats { display: flex; flex-wrap: wrap; padding: 10px 14px 2px; }
+.rstats div { padding: 0 14px; border-left: 1px solid var(--edge-soft); }
 .rstats div:first-child { padding-left: 0; border-left: 0; }
-.rstats b { display: block; font-family: "Sofia Sans Condensed", sans-serif; font-size: 20px; line-height: 1.1; }
+.rstats b { display: block; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 20px; line-height: 1.1; }
 .rstats span { font-size: 12px; color: var(--slate); }
-.dlg .note { margin: 0; padding: 4px 12px 10px; color: var(--muted); font-size: 11px; }
+.dlg .note { margin: 0; padding: 4px 14px 12px; color: var(--muted); font-size: 11px; }
 .about { width: min(720px, calc(100vw - 32px)); }
 .aboutbody { padding: 6px 20px 18px; max-height: min(72vh, 680px); overflow: auto; font-size: 14px; line-height: 1.55; }
 .aboutbody p { margin: 0 0 10px; max-width: 68ch; }
-.aboutbody h3 { margin: 16px 0 4px; font-family: "Sofia Sans Condensed", sans-serif; font-weight: 900; font-size: 17px; }
-#aboutBtn, #shareBtn { cursor: pointer; font-weight: 700; }
+.aboutbody h3 { margin: 16px 0 4px; font-family: "Chakra Petch", sans-serif; font-weight: 600; font-size: 17px; }
+#aboutBtn, #shareBtn { cursor: pointer; font-weight: 600; }
 /* The histogram scrolls with the page on touch; only the snow line handle takes the gesture. */
 #hist { touch-action: pan-y; }
 #hist .handle, #hist .handle * { cursor: ns-resize; touch-action: none; }
-.zoombtn { padding: 1px 8px; font-size: 15px; line-height: 1.2; }
-.zoombtn + .zoombtn, .zoombtn + .resetbtn { margin-left: 4px; }
+#scatter { touch-action: none; user-select: none; }
 
+/* Wide screens: the map sits fixed behind everything. The page itself lets clicks through to it;
+   only the windows and controls take them. */
+@media (min-width: 1101px) {
+  body { pointer-events: none; }
+  .bar, .plate, .mapctrls, .maplegend, #map, dialog, #backdrop, .pop { pointer-events: auto; }
+  #map { position: fixed; inset: 0; z-index: -2; border-radius: 0; }
+  /* The map window is open glass: just the corner brackets, its controls and the legend. */
+  .mapplate { background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; pointer-events: none; }
+  .mapshade {
+    display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none; transition: opacity .25s;
+    background:
+      radial-gradient(1200px 520px at 18% -10%, rgba(92, 196, 255, .2), transparent 60%),
+      linear-gradient(90deg, rgba(7, 16, 30, .7) 0%, rgba(7, 16, 30, .3) 36%, rgba(7, 16, 30, .05) 60%, rgba(7, 16, 30, .25) 100%),
+      linear-gradient(180deg, rgba(7, 16, 30, .3) 0%, transparent 22%, transparent 64%, rgba(7, 16, 30, .5) 100%);
+  }
+  body.mapmode .mapshade { opacity: .25; }
+}
 @media (max-width: 1100px) {
   body { display: block; height: auto; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .indexplate { max-height: 70vh; }
-  .mapplate { height: 60vh; flex: none; }
+  .mapplate { height: 60vh; flex: none; border: 1px solid var(--edge); border-radius: 12px; box-shadow: 0 18px 44px rgba(2, 10, 22, .5); }
   .snowline { margin-left: 0; }
+  body.mapmode #mapPlate { inset: 6px; z-index: 60; height: auto; }
 }
 /* Phones: nothing may be wider than the screen. Headers wrap, charts scale, overlays fill the screen. */
 @media (max-width: 640px) {
   html, body { overflow-x: clip; } /* clip, not hidden: hidden can turn the body into its own scroller on iOS */
-  .bar { padding: 8px 12px; gap: 8px; }
+  .bar { margin: 8px 8px 0; padding: 10px 12px; gap: 8px; }
   .bar > * { order: 2; }
-  .wordmark { order: 0; font-size: 21px; margin-right: 0; }
+  .wordmark { order: 0; font-size: 20px; margin-right: 0; }
   #shareBtn { order: 1; margin-left: auto; }
   #aboutBtn { order: 1; }
   .pill { white-space: normal; }
@@ -206,10 +333,10 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
   .snowline { order: 3; width: 100%; }
   .snowline input { flex: 1; width: auto; }
   .find { order: 4; width: 100%; }
-  .split { padding: 8px 10px 14px; gap: 16px; }
-  .colhead { white-space: normal; }
+  .find ul { min-width: 0; right: 0; }
+  .split { padding: 10px 8px 14px; gap: 12px; }
   .phead { flex-wrap: wrap; row-gap: 6px; }
-  .legend > span:last-child { display: none; }
+  .legend .faded { display: none; }
   .titlecard { flex-wrap: wrap; padding: 10px 12px; }
   .titlecard h1 { font-size: 26px; }
   .stats { margin-left: 0; flex-wrap: wrap; gap: 6px 0; }
@@ -228,13 +355,20 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
   .dlg { width: calc(100vw - 12px); max-width: none; }
   .aboutbody { padding: 6px 14px 14px; max-height: 80vh; }
   .rstats div { padding: 0 10px 6px 0; border-left: 0; }
+  .glass, .plate, .bar, .pop, .find ul, .tip, .dlg { -webkit-backdrop-filter: blur(10px) saturate(140%); backdrop-filter: blur(10px) saturate(140%); }
 }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <header class="bar">
   <div class="wordmark">Ski Altitude Explorer</div>
-  <label class="pill">Region <select id="region"></select></label>
+  <div class="popwrap">
+    <button type="button" class="pill" id="regionBtn" aria-haspopup="listbox" aria-expanded="false" aria-controls="regionPop">Region <b></b>
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></button>
+    <div class="pop regionpop" id="regionPop" role="listbox" aria-label="Region" hidden></div>
+    <select id="region" hidden></select>
+  </div>
   <div class="popwrap">
     <button type="button" class="pill" id="ccBtn" aria-expanded="false" aria-controls="ccPop">All countries</button>
     <div class="pop" id="ccPop" hidden>
@@ -243,7 +377,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
     </div>
   </div>
   <label class="pill">At least <input id="minKm" type="number" min="0" step="10" value="30"> km</label>
-  <label class="pill"><input id="domains" type="checkbox" checked> Linked domains only</label>
+  <label class="pill"><input id="domains" type="checkbox" checked> Linked domains</label>
   <div class="snowline">
     <label for="thr">Snow line</label>
     <input id="thr" type="range" min="500" max="3500" step="100" value="2000">
@@ -260,26 +394,30 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
 
 <main class="split">
   <div class="col">
-    <div class="colhead" id="filterSummary">Loading…</div>
     <section class="plate" id="scatterCard">
-      <div class="phead"><b>Size against high piste</b><span class="gradekey" id="scatterGrades"></span>
+      <div class="phead"><b>Size against high piste</b><span id="plotCount"></span>
         <button type="button" class="iconbtn zoombtn" id="sZoomIn" title="Zoom in" aria-label="Zoom in on plot">+</button>
         <button type="button" class="iconbtn zoombtn" id="sZoomOut" title="Zoom out" aria-label="Zoom out of plot">−</button>
         <button type="button" class="iconbtn resetbtn" id="scatterReset" disabled title="Reset view" aria-label="Reset plot view">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.5v3h3"/></svg></button>
         <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <div class="caps"><button type="button" class="iconbtn minbtn" title="Minimise" aria-label="Minimise plot" aria-pressed="false">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path class="m" d="M2.5 9h7"/><path class="r" d="M2 4h6v6H2zM4 4V2h6v6H8"/></svg></button>
         <button type="button" class="iconbtn expandbtn" data-what="plot" aria-label="Expand plot">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
-        </button></div>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/><path d="M1.5 4h9"/></svg><span>Expand</span>
+        </button></div></div>
+      <div class="chiprow gradekey" id="scatterGrades"></div>
       <svg id="scatter" role="img" aria-label="Total piste km against km above the snow line"></svg>
       <div class="tip" id="scatterTip"></div>
     </section>
     <section class="plate indexplate">
       <div class="phead"><b>Index</b><span id="count"></span>
         <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <div class="caps"><button type="button" class="iconbtn minbtn" title="Minimise" aria-label="Minimise index" aria-pressed="false">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path class="m" d="M2.5 9h7"/><path class="r" d="M2 4h6v6H2zM4 4V2h6v6H8"/></svg></button>
         <button type="button" class="iconbtn expandbtn" data-what="index" aria-label="Expand index">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
-        </button></div>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/><path d="M1.5 4h9"/></svg><span>Expand</span>
+        </button></div></div>
       <div class="tablewrap">
         <table>
           <thead><tr>
@@ -295,7 +433,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
         <div class="empty" id="empty" hidden>No domains match. Choose a wider region, tick more countries or lower the minimum size.</div>
         <button type="button" class="morebtn" id="moreRows" hidden></button>
       </div>
-      <div class="credit">Data © <a href="https://openskimap.org">OpenSkiMap</a> and <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL. <a href="#" id="aboutLink">How this is measured</a></div>
+      <div class="statusbar"><span id="filterSummary">Loading…</span><a href="#" id="aboutLink">How this is measured</a></div>
     </section>
   </div>
 
@@ -314,27 +452,34 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
         <div><b id="sLift">–</b><span>top lift</span></div>
       </div>
     </section>
-    <section class="plate mapplate" id="mapPlate">
-      <div class="phead">
-        <b>Piste map</b>
-        <span class="legend"><span><i style="background:#2e9e4f"></i>green</span><span><i style="background:#2f6fd6"></i>blue</span><span><i style="background:#d23a32"></i>red</span><span><i style="background:#1d1f1e"></i>black</span><span>faded below the snow line; click a piste for its profile</span></span>
-        <label class="lifttoggle"><input type="checkbox" id="showLifts" checked> Lifts</label>
+    <section class="plate mapplate" id="mapPlate" aria-label="Piste map">
+      <div id="map"></div>
+      <div class="mapframe" aria-hidden="true"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+      <div class="mapctrls glass">
+        <button type="button" class="iconbtn zoombtn" id="mapZoomIn" title="Zoom in" aria-label="Zoom in on map">+</button>
+        <button type="button" class="iconbtn zoombtn" id="mapZoomOut" title="Zoom out" aria-label="Zoom out of map">−</button>
         <button type="button" class="iconbtn resetbtn" id="mapReset" disabled title="Reset view" aria-label="Reset map view">
           <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.5v3h3"/></svg></button>
-        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
-        <button type="button" class="iconbtn expandbtn" data-what="map" aria-label="Expand map">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
-        </button>
+        <button type="button" class="iconbtn expandbtn" data-what="map" title="Expand map" aria-label="Expand map">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/><path d="M1.5 4h9"/></svg></button>
       </div>
-      <div id="map"></div>
+      <div class="maplegend glass">
+        <span class="legend"><span><i style="background:#4cd07d"></i>green</span><span><i style="background:#4aa3ff"></i>blue</span><span><i style="background:#ff5a5a"></i>red</span><span><i style="background:#14181d;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>black</span><span class="faded">faded below the snow line; click a piste for its profile</span></span>
+        <label class="lifttoggle"><input type="checkbox" id="showLifts" checked> Lifts</label>
+        <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <span class="attrib">© <a href="https://openskimap.org">OpenSkiMap</a>, <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, <a href="https://openfreemap.org">OpenFreeMap</a>, AWS Terrain Tiles</span>
+      </div>
     </section>
+    <div class="mapshade" aria-hidden="true"></div>
     <section class="plate" id="histCard">
       <div class="phead"><b>Piste km by altitude</b><span id="histNote">Each bar is 100 m of altitude. Drag the orange line to move the snow line.</span>
         <div class="seg" role="group" aria-label="Histogram view"><button type="button" data-mode="total" aria-pressed="true">Total</button><button type="button" data-mode="grade" aria-pressed="false">By grade</button></div>
         <label class="modalsnow">Snow line <input type="range" min="500" max="3500" step="100" value="2000"><output>2,000 m</output></label>
+        <div class="caps"><button type="button" class="iconbtn minbtn" title="Minimise" aria-label="Minimise altitude chart" aria-pressed="false">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path class="m" d="M2.5 9h7"/><path class="r" d="M2 4h6v6H2zM4 4V2h6v6H8"/></svg></button>
         <button type="button" class="iconbtn expandbtn" data-what="altitude chart" aria-label="Expand altitude chart">
-          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M8.5 1.5h4v4M12.5 1.5L8 6M5.5 12.5h-4v-4M1.5 12.5L6 8"/></svg><span>Expand</span>
-        </button>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1"/><path d="M1.5 4h9"/></svg><span>Expand</span>
+        </button></div>
       </div>
       <svg id="hist" role="img" aria-label="Piste km per 100 m altitude band"></svg>
       <div class="tip" id="histTip"></div>
@@ -364,7 +509,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
     <p>Figures here are usually lower than a resort's published piste km, sometimes by a lot. Resorts measure in different ways: some count ski routes and itineraries, the length along the slope rather than on the map, wide pistes as several runs, or the whole of a lift pass that covers unlinked valleys. Our figure is the horizontal length of the pistes mapped in OpenStreetMap, measured the same way everywhere, so it is best used to compare domains with each other. Where a domain looks too small, its pistes may simply not all be mapped yet.</p>
 
     <h3>Linked domains</h3>
-    <p>Domains come from OpenSkiMap, which groups resorts into linked areas such as Les Trois Vallées. With "Linked domains only" on, resorts inside a bigger domain are counted as part of it, and lift-pass networks of unlinked valleys, such as Dolomiti Superski, are hidden. A few linked domains aren't grouped in the data yet, so their resorts appear separately.</p>
+    <p>Domains come from OpenSkiMap, which groups resorts into linked areas such as Les Trois Vallées. With "Linked domains" on, resorts inside a bigger domain are counted as part of it, and lift-pass networks of unlinked valleys, such as Dolomiti Superski, are hidden. A few linked domains aren't grouped in the data yet, so their resorts appear separately.</p>
 
     <h3>The snow line</h3>
     <p>The snow line is a single altitude. It doesn't account for which way slopes face, latitude, glaciers or snowmaking, so treat it as a guide to altitude rather than a snow forecast.</p>
@@ -392,15 +537,17 @@ const ticks = (max, n = 5) => { const step = niceMax(max / n); const t = []; for
 
 // Relief-map altitude colours, shared by the map, dots, bars and profile strips.
 const HYPS = [[1000, "#bdd1a0"], [1400, "#d6daa3"], [1800, "#e6d39c"], [2200, "#d7b383"], [2600, "#c09572"], [3000, "#9f8a80"], [Infinity, "#edf2f5"]];
+// The same bands, brightened to read on the glass: used by the charts and domain markers. HYPS stays on the map relief.
+const UI_HYPS = HYPS.map(([lim], i) => [lim, ["#7fd18f", "#c8e07a", "#f2d36b", "#f4a95c", "#e07c64", "#c9b8d6", "#f2f8ff"][i]]);
 const hypsIndex = z => HYPS.findIndex(([lim]) => z < lim);
-const hyps = z => HYPS[hypsIndex(z)][1];
-const HIGH = "#2f78c4", LOW = "#7a4a22";
+const hyps = z => UI_HYPS[hypsIndex(z)][1];
+const HIGH = "#8fd6ff", LOW = "#ffb27f";
 const TOUCH = matchMedia("(pointer: coarse)").matches;
 
 // European piste grades. OpenSkiMap's difficulty values map onto them; anything else is ungraded.
 const GRADES = [
-  { name: "Green", color: "#2e9e4f" }, { name: "Blue", color: "#2f6fd6" }, { name: "Red", color: "#d23a32" },
-  { name: "Black", color: "#1d1f1e" }, { name: "Ungraded", color: "#8a8f8c" },
+  { name: "Green", color: "#4cd07d" }, { name: "Blue", color: "#4aa3ff" }, { name: "Red", color: "#ff5a5a" },
+  { name: "Black", color: "#14181d" }, { name: "Ungraded", color: "#9aa7b3" },
 ];
 const gradeIndex = d => ({ novice: 0, easy: 1, intermediate: 2, advanced: 3, expert: 3, extreme: 3 })[d] ?? 4;
 
@@ -426,8 +573,18 @@ fetch("data/ski_area_stats.json", { cache: "no-cache" }).then(r => r.json()).the
   $("#region").addEventListener("input", () => { unchecked.clear(); pinned = false; render(); });
   $("#ccAll").addEventListener("click", () => { unchecked.clear(); render(); });
   $("#ccNone").addEventListener("click", () => { document.querySelectorAll("#ccList input").forEach(i => unchecked.add(i.value)); render(); });
-  $("#ccBtn").addEventListener("click", e => { e.stopPropagation(); togglePop(); });
-  document.addEventListener("click", e => { if (!e.target.closest(".popwrap")) togglePop(false); });
+  $("#ccBtn").addEventListener("click", () => togglePop("cc"));
+  $("#regionBtn").addEventListener("click", () => togglePop("region"));
+  // Close whichever menu the click wasn't in.
+  document.addEventListener("click", e => {
+    for (const name of ["cc", "region"]) if (!$(`#${name}Pop`).parentNode.contains(e.target)) togglePop(name, false);
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { togglePop("cc", false); togglePop("region", false); } });
+  document.querySelectorAll(".minbtn").forEach(btn => btn.addEventListener("click", () => {
+    const min = btn.closest(".plate").classList.toggle("min");
+    btn.setAttribute("aria-pressed", min); btn.title = min ? "Restore" : "Minimise";
+    render();
+  }));
   document.querySelectorAll("th[data-k]").forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.k;
     sortDir = sortKey === k ? -sortDir : (["label", "cc", "rank"].includes(k) ? 1 : -1);
@@ -469,9 +626,9 @@ fetch("data/ski_area_stats.json", { cache: "no-cache" }).then(r => r.json()).the
   $("#filterSummary").textContent = "Serve this folder over HTTP (python -m http.server), then reload.";
 });
 
-function togglePop(open = $("#ccPop").hidden) {
-  $("#ccPop").hidden = !open;
-  $("#ccBtn").setAttribute("aria-expanded", open);
+function togglePop(name, open = $(`#${name}Pop`).hidden) {
+  $(`#${name}Pop`).hidden = !open;
+  $(`#${name}Btn`).setAttribute("aria-expanded", open);
 }
 
 // Option values: "*" everywhere, "g:<group>" a whole group, otherwise a region name.
@@ -488,6 +645,22 @@ function buildRegionSelect() {
     sel.appendChild(og);
   }
   sel.value = "Alps";
+  // The glass menu mirrors the select: groups become headings, options become buttons.
+  const pop = $("#regionPop");
+  const item = o => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "option"); b.dataset.v = o.value; b.textContent = o.textContent;
+    b.addEventListener("click", () => {
+      sel.value = o.value; togglePop("region", false);
+      sel.dispatchEvent(new Event("input"));
+    });
+    return b;
+  };
+  for (const c of sel.children) {
+    if (c.tagName === "OPTION") { pop.append(item(c)); continue; }
+    const h = document.createElement("div"); h.className = "group"; h.textContent = c.label;
+    pop.append(h, ...[...c.children].map(item));
+  }
 }
 
 function inRegion(a, sel) {
@@ -541,10 +714,13 @@ function current() {
   }
   [...rows].sort((a, b) => b.above - a.above).forEach((a, i) => a.rank = i + 1);
   const regionName = $("#region").selectedOptions[0].textContent;
+  $("#regionBtn b").textContent = regionName;
+  document.querySelectorAll("#regionPop button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === region));
   $("#filterSummary").innerHTML = "";
   const b = document.createElement("b"); b.textContent = `${rows.length} domains`;
   const gradeText = gradesOff.size ? `, counting ${GRADES.filter((_, i) => !gradesOff.has(i)).map(g => g.name.toLowerCase()).join(", ") || "no"} pistes` : "";
   $("#filterSummary").append(b, ` match your filters: ${regionName}, ${ccText}, at least ${fmt(minKm)} km${domains ? ", linked domains" : ""}${gradeText}`);
+  $("#plotCount").textContent = `${fmt(rows.length)} domains, click one to open it`;
   return { thr, rows };
 }
 
@@ -657,7 +833,7 @@ function profileStrip(a) {
   shares.forEach((km, i) => {
     if (!km) return;
     const w = 72 * km / a.km;
-    el("rect", { x, y: 0, width: w, height: 9, fill: HYPS[i][1] }, svg);
+    el("rect", { x, y: 0, width: w, height: 9, fill: UI_HYPS[i][1] }, svg);
     x += w;
   });
   return svg;
@@ -746,12 +922,12 @@ function drawScatter(rows, thr) {
 
   const defs = el("defs", {}, svg), clip = el("clipPath", { id: "scatterClip" }, defs);
   el("rect", { x: ox, y: m.t, width: side, height: side }, clip);
-  el("rect", { x: ox, y: m.t, width: side, height: side, fill: "#fbfbf8" }, svg);
+  el("rect", { x: ox, y: m.t, width: side, height: side, fill: "rgba(255,255,255,.035)" }, svg);
   const plot = el("g", { "clip-path": "url(#scatterClip)" }, svg);
   // Above the diagonal a domain would have more high piste than piste, so that half is shaded.
   const big = full * 2;
-  el("path", { d: `M${x(0)},${y(0)} L${x(0)},${y(big)} L${x(big)},${y(big)} Z`, fill: "#ecede6" }, plot);
-  if (!sView) el("text", { x: x(full * 0.06), y: y(full * 0.9), style: "fill:var(--muted);font-family:'Source Serif 4',serif;font-style:italic;font-size:10.5px" }, plot)
+  el("path", { d: `M${x(0)},${y(0)} L${x(0)},${y(big)} L${x(big)},${y(big)} Z`, fill: "rgba(255,255,255,.05)" }, plot);
+  if (!sView) el("text", { x: x(full * 0.06), y: y(full * 0.9), style: "fill:var(--muted);font-family:Figtree,sans-serif;font-style:italic;font-size:10.5px" }, plot)
     .textContent = "no domain can sit here";
   for (const t of tickRange(v.x0, v.x0 + v.s, 4)) {
     el("line", { x1: x(t), x2: x(t), y1: m.t, y2: m.t + side, stroke: "var(--soft)" }, plot);
@@ -775,14 +951,14 @@ function drawScatter(rows, thr) {
     else if (top / p <= right && top / p >= v.x0) { lx = top / p; ly = top; dy = 12; }
     else continue;
     el("text", { x: x(lx) - 4, y: y(ly) + dy, "text-anchor": "end",
-      style: "fill:var(--contour);font-family:'Source Serif 4',serif;font-style:italic;font-size:10.5px" }, plot)
+      style: "fill:var(--contour);font-family:Figtree,sans-serif;font-style:italic;font-size:10.5px" }, plot)
       .textContent = p === 1 ? "all above" : `${p * 100}%`;
   }
 
   const inView = a => a.fkm >= v.x0 && a.fkm <= right && a.above >= v.y0 && a.above <= top;
   const pts = rows.map(a => ({ a, cx: x(a.fkm), cy: y(a.above) }));
   for (const p of [...pts].sort((u, w) => w.a.fkm - u.a.fkm)) {
-    el("circle", { cx: p.cx, cy: p.cy, r: p.a.fkm >= 100 ? 4.5 : 3.2, fill: hyps(p.a.median_alt), stroke: "#2a2f2b", "stroke-width": 0.6 }, plot);
+    el("circle", { cx: p.cx, cy: p.cy, r: p.a.fkm >= 100 ? 4.5 : 3.2, fill: hyps(p.a.median_alt), stroke: "rgba(255,255,255,.55)", "stroke-width": 0.6 }, plot);
   }
   const placed = [];
   for (const a of rows.filter(inView).sort((p, q) => q.above - p.above).slice(0, 8)) {
@@ -796,7 +972,7 @@ function drawScatter(rows, thr) {
     t.textContent = name;
   }
   const sel = rows.find(a => a.id === selectedId);
-  if (sel) el("circle", { cx: x(sel.fkm), cy: y(sel.above), r: 9, fill: "none", stroke: "var(--marker)", "stroke-width": 2 }, plot);
+  if (sel) el("circle", { cx: x(sel.fkm), cy: y(sel.above), r: 9, fill: "none", stroke: "var(--marker)", "stroke-width": 2, class: "selring" }, plot);
 
   const tip = $("#scatterTip"), ring = el("circle", { r: 7, fill: "none", stroke: "var(--ink)", "stroke-width": 1.5, visibility: "hidden" }, svg);
   const toSvg = ev => { const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); };
@@ -923,7 +1099,8 @@ function drawDetail(a, thr) {
         const km = series[z] || 0;
         if (gradesOff.has(gi) || !km) return;
         el("rect", { x: x(acc), y: m.t + i * bh + gap / 2, width: Math.max(0.5, x(acc + km) - x(acc)), height: Math.max(1, bh - gap),
-          fill: GRADES[gi].color, "fill-opacity": 0.55 }, svg);
+          fill: GRADES[gi].color, "fill-opacity": 0.55,
+          ...(gi === 3 && { stroke: "rgba(255,255,255,.5)", "stroke-width": 0.6 }) }, svg);
         acc += km;
       });
     });
@@ -947,7 +1124,7 @@ function drawDetail(a, thr) {
     if (histMode === "total") {
       const fill = hyps(z + BIN / 2);
       el("rect", { x: m.l, y: y0 + gap / 2, width: Math.max(0, x(km) - m.l), height: Math.max(1, bh - gap), fill,
-        stroke: fill === HYPS[HYPS.length - 1][1] ? "#9fb3c2" : "none", "stroke-width": 0.6 }, svg);
+        stroke: fill === UI_HYPS[UI_HYPS.length - 1][1] ? "#9fb3c2" : "none", "stroke-width": 0.6 }, svg);
     }
     const hit = el("rect", { x: m.l, y: y0, width: iw, height: bh, fill: "transparent" }, svg);
     hit.addEventListener("mousemove", ev => {
@@ -1063,6 +1240,7 @@ function openRun(r) {
   }
   const line = pts.map((p, i) => `${x(cum[i])},${y(p[2])}`).join(" L");
   el("path", { d: `M${x(0)},${m.t + H1} L${line} L${x(L)},${m.t + H1} Z`, fill: g.color, "fill-opacity": 0.12 }, svg);
+  if (g === GRADES[3]) el("path", { d: `M${line}`, fill: "none", stroke: "rgba(255,255,255,.6)", "stroke-width": 4.4, "stroke-linejoin": "round" }, svg);
   el("path", { d: `M${line}`, fill: "none", stroke: g.color, "stroke-width": 2.4, "stroke-linejoin": "round" }, svg);
   if (thr > zLo && thr < zHi) {
     el("line", { x1: m.l, x2: m.l + iw, y1: y(thr), y2: y(thr), stroke: "var(--marker)", "stroke-width": 1.6, "stroke-dasharray": "6 4" }, svg);
@@ -1158,16 +1336,29 @@ function setupExpand() {
     btn.setAttribute("aria-label", `${open ? "Close" : "Expand"} ${btn.dataset.what}`);
     render();
     map?.resize();
-    if (map && TOUCH && plate.id === "mapPlate") open ? map.cooperativeGestures.disable() : map.cooperativeGestures.enable();
+  };
+  // The map doesn't become a window over the page: the other windows step aside to leave the map.
+  const mapBtn = $("#mapPlate .expandbtn");
+  const setMap = open => {
+    document.body.classList.toggle("mapmode", open);
+    mapBtn.setAttribute("aria-label", `${open ? "Close" : "Expand"} map`); mapBtn.title = open ? "Close map" : "Expand map";
+    mapBtn.setAttribute("aria-pressed", open);
+    if (!map) return;
+    map.resize();
+    if (runsBounds && !userMoved) map.fitBounds(runsBounds, { padding: mapPadding(), duration: 400, maxZoom: 14 });
+    if (TOUCH) open ? map.cooperativeGestures.disable() : map.cooperativeGestures.enable();
   };
   const openPlate = () => document.querySelector(".plate.expanded");
   document.querySelectorAll(".expandbtn").forEach(btn => btn.addEventListener("click", () => {
     const plate = btn.closest(".plate");
+    if (plate.id === "mapPlate") return setMap(!document.body.classList.contains("mapmode"));
     set(plate, !plate.classList.contains("expanded"));
   }));
   back.addEventListener("click", () => openPlate() && set(openPlate(), false));
   document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && openPlate() && !$("#runDlg").open) set(openPlate(), false);
+    if (e.key !== "Escape" || $("#runDlg").open) return;
+    if (openPlate()) set(openPlate(), false);
+    else if (document.body.classList.contains("mapmode")) setMap(false);
   });
 }
 
@@ -1185,7 +1376,7 @@ const MAP_STYLE = {
       attribution: "<a href=\"https://openfreemap.org\">OpenFreeMap</a> © <a href=\"https://www.openmaptiles.org/\">OpenMapTiles</a> © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap contributors</a>" },
   },
   layers: [
-    { id: "paper", type: "background", paint: { "background-color": "#eef0ea" } },
+    { id: "paper", type: "background", paint: { "background-color": "#1a2632" } },
     { id: "relief", type: "color-relief", source: "dem", paint: { "color-relief-opacity": 0.9, "color-relief-color": ["interpolate", ["linear"], ["elevation"],
       0, HYPS[0][1], 1000, HYPS[1][1], 1400, HYPS[2][1], 1800, HYPS[3][1], 2200, HYPS[4][1], 2600, HYPS[5][1], 3000, HYPS[6][1]] } },
     { id: "hillshade", type: "hillshade", source: "dem", paint: { "hillshade-exaggeration": 0.45, "hillshade-shadow-color": "#4a4038", "hillshade-highlight-color": "#ffffff", "hillshade-accent-color": "#6f6257" } },
@@ -1284,24 +1475,36 @@ function liftFeatures(lifts) {
   return [lines, [...stations, ...marks]].map(features => ({ type: "FeatureCollection", features }));
 }
 
+const WIDE = matchMedia("(min-width: 1101px)");
+// On wide screens the map fills the page, so frame the domain inside the open map window,
+// clear of the controls on its right and the legend along its bottom.
+function mapPadding() {
+  if (!WIDE.matches) return 30;
+  const r = $("#mapPlate").getBoundingClientRect();
+  return { top: r.top + 30, left: r.left + 30, right: innerWidth - r.right + 60, bottom: innerHeight - r.bottom + 60 };
+}
+
 // Re-frame the selected domain's pistes after the viewer has zoomed or panned.
 function resetMapView() {
   if (!map || !runsBounds) return;
   userMoved = false; $("#mapReset").disabled = true;
-  map.fitBounds(runsBounds, { padding: 30, duration: 500, maxZoom: 14 });
+  map.fitBounds(runsBounds, { padding: mapPadding(), duration: 500, maxZoom: 14 });
 }
 
 function initMap() {
   if (!window.maplibregl) { $("#map").textContent = "The map library didn't load."; return; }
   // On touch screens one finger scrolls the page and two move the map, unless the map is expanded.
-  map = new maplibregl.Map({ container: "map", style: MAP_STYLE, center: [10, 46.3], zoom: 5.5, attributionControl: { compact: true },
+  map = new maplibregl.Map({ container: "map", style: MAP_STYLE, center: [10, 46.3], zoom: 5.5, attributionControl: false,
     cooperativeGestures: TOUCH });
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  const zoomBy = d => { userMoved = true; $("#mapReset").disabled = false; d > 0 ? map.zoomIn() : map.zoomOut(); };
+  $("#mapZoomIn").addEventListener("click", () => zoomBy(1));
+  $("#mapZoomOut").addEventListener("click", () => zoomBy(-1));
   // Keep the domain framed as the plate resizes, until the viewer moves the map themselves.
-  new ResizeObserver(() => {
+  const ro = new ResizeObserver(() => {
     map.resize();
-    if (runsBounds && !userMoved) map.fitBounds(runsBounds, { padding: 30, duration: 0, maxZoom: 14 });
-  }).observe($("#map"));
+    if (runsBounds && !userMoved) map.fitBounds(runsBounds, { padding: mapPadding(), duration: 0, maxZoom: 14 });
+  });
+  ro.observe($("#map")); ro.observe($("#mapPlate"));
   map.on("movestart", e => { if (e.originalEvent) { userMoved = true; $("#mapReset").disabled = false; } });
   map.on("moveend", () => syncUrl());
   // Add our layers once the style is ready, rather than waiting for every relief tile to render.
@@ -1428,7 +1631,7 @@ function updateMap(rows, sel, thr) {
         map.jumpTo(initialCamera); initialCamera = null;
         userMoved = true; $("#mapReset").disabled = false;
       } else {
-        map.fitBounds(b, { padding: 30, duration: firstFit ? 0 : 700, maxZoom: 14 });
+        map.fitBounds(b, { padding: mapPadding(), duration: firstFit ? 0 : 700, maxZoom: 14 });
         userMoved = false; $("#mapReset").disabled = true;
       }
     }
