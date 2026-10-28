@@ -113,6 +113,7 @@ tbody tr:hover td { background: #fbfbf8; }
 tbody tr.sel td { background: var(--tint); }
 tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
 .empty { padding: 24px 14px; color: var(--slate); }
+.morebtn { display: block; width: calc(100% - 24px); margin: 8px 12px; padding: 8px; border: 1px solid var(--ink); background: var(--plate); font-weight: 700; cursor: pointer; }
 .credit { padding: 6px 12px; border-top: 1px solid var(--soft); color: var(--muted); font-size: 11px; }
 
 /* Selected domain */
@@ -193,7 +194,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
 }
 /* Phones: nothing may be wider than the screen. Headers wrap, charts scale, overlays fill the screen. */
 @media (max-width: 640px) {
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: clip; } /* clip, not hidden: hidden can turn the body into its own scroller on iOS */
   .bar { padding: 8px 12px; gap: 8px; }
   .bar > * { order: 2; }
   .wordmark { order: 0; font-size: 21px; margin-right: 0; }
@@ -212,7 +213,10 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
   .stats { margin-left: 0; flex-wrap: wrap; gap: 6px 0; }
   .stats div { padding: 0 12px 0 0; border-left: 0; }
   .stats b { font-size: 19px; }
-  .indexplate { max-height: 65vh; }
+  /* No scroll boxes inside the page: the index grows with the page and adds rows on request. */
+  .indexplate { max-height: none; }
+  .indexplate:not(.expanded) .tablewrap { overflow: visible; }
+  .mapplate { height: 50vh; }
   td.name { min-width: 100px; }
   th.nosort, tbody td:last-child { display: none; } /* the profile strip column */
   svg { max-width: 100%; height: auto; }
@@ -286,6 +290,7 @@ tbody tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--marker); }
           <tbody id="rows"></tbody>
         </table>
         <div class="empty" id="empty" hidden>No domains match. Choose a wider region, tick more countries or lower the minimum size.</div>
+        <button type="button" class="morebtn" id="moreRows" hidden></button>
       </div>
       <div class="credit">Data © <a href="https://openskimap.org">OpenSkiMap</a> and <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL. <a href="#" id="aboutLink">How this is measured</a></div>
     </section>
@@ -431,6 +436,7 @@ fetch("data/ski_area_stats.json", { cache: "no-cache" }).then(r => r.json()).the
     render();
   }));
   $("#scatterReset").addEventListener("click", () => { sView = null; drawScatter(...sLast); });
+  $("#moreRows").addEventListener("click", () => { phoneRows += 20; render(); });
   $("#sZoomIn").addEventListener("click", () => zoomScatter(0.6));
   $("#sZoomOut").addEventListener("click", () => zoomScatter(1 / 0.6));
   $("#mapReset").addEventListener("click", resetMapView);
@@ -575,9 +581,15 @@ function profileStrip(a) {
   return svg;
 }
 
+// On phones the index grows with the page rather than scrolling inside it, so it shows rows in batches.
+const PHONE = matchMedia("(max-width: 640px)");
+let phoneRows = 20;
+
 function drawTable(rows) {
   const tb = $("#rows"); tb.textContent = "";
-  for (const a of rows.slice(0, 400)) {
+  const batched = PHONE.matches && !$(".indexplate").classList.contains("expanded");
+  const limit = batched ? phoneRows : 400;
+  for (const a of rows.slice(0, limit)) {
     const tr = document.createElement("tr");
     if (a.id === selectedId) tr.className = "sel";
     const td = (text, cls) => { const c = document.createElement("td"); c.textContent = text; if (cls) c.className = cls; tr.appendChild(c); return c; };
@@ -594,8 +606,11 @@ function drawTable(rows) {
     tr.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(a.id); } });
     tb.appendChild(tr);
   }
-  $("#count").textContent = `Ranked by piste above the snow line${rows.length > 400 ? ", top 400 listed" : ""}`;
+  $("#count").textContent = `Ranked by piste above the snow line${!batched && rows.length > 400 ? ", top 400 listed" : ""}`;
   $("#empty").hidden = rows.length > 0;
+  const more = $("#moreRows"), left = Math.min(rows.length, 400) - limit;
+  more.hidden = !batched || left <= 0;
+  more.textContent = `Show ${Math.min(20, left)} more of ${rows.length}`;
 }
 
 function placeTip(tip, card, ev) {
