@@ -4,8 +4,11 @@ Output: data/ski_area_stats.json (small; the app loads it up front) and
 data/runs/<area id>.json (simplified run and lift lines with elevation, loaded per domain for the map).
 """
 
+import hashlib
 import json
+import math
 import shutil
+import sys
 from collections import Counter, defaultdict
 from datetime import date
 from itertools import combinations
@@ -24,6 +27,28 @@ MIN_ELE = -50  # below this an elevation is treated as bad data
 SUB_AREA_SHARE = 0.8  # B is a sub-area of A if A shares >= 80% of B's runs
 # Lift-pass networks of unlinked valleys: never a parent, hidden in the domain view.
 PASS_NETWORKS = {"Dolomiti Superski", "Ski amadé"}
+
+# Linked domains OpenSkiMap doesn't group: top-level areas whose runs or lifts touch are joined.
+SNAP_M = 30  # a line end this close to another area's run or lift joins the two areas
+SNAP_CELL = 0.0005  # grid cell for the snap search, in degrees (about 40-55 m)
+LINK_MIN = 1  # touching points (plus runs tagged to both) needed to join two areas
+LINKED_ALONE = 0.85  # a linked set keeps its largest member's name if that member has this share of the km
+# Names for linked sets, keyed by any member's name.
+LINKED_NAMES = {
+    "Sestriere": "Via Lattea",
+    "La Thuile ski": "Espace San Bernardo",
+    "Masella": "Alp 2500",
+    "Artesina": "Mondolè Ski",
+    "Valle Nevado": "Tres Valles",
+    "Grindelwald - Wengen (Kleine Scheidegg - Männlichen)": "Jungfrau Ski Region",
+    "Snowbird": "Alta and Snowbird",
+    "Palisades Tahoe Olympic Valley": "Palisades Tahoe",
+    "Andermatt+Disentis+Sedrun": "Andermatt-Sedrun-Disentis",
+    "Ylläs": "Ylläs",
+    "Kolašin 1600": "Kolašin",
+    "志賀高原 焼額山スキー場, Shiga Kogen Yakebitaiyama Ski Area, 焼額山スキー場": "Shiga Kogen",
+    "志賀高原 横手山スキー場, Shiga Kogen Yokoteyama Ski Area": "Shiga Kogen Yokoteyama and Shibutoge",
+}
 
 geod = Geod(ellps="WGS84")
 
@@ -162,6 +187,8 @@ def main():
     skipped = Counter()
     pass_ids = set()
     run_lines = defaultdict(list)  # area id -> JSON strings of its runs (shared between areas)
+    run_info = []  # (areas, grade, bins, lo, hi, json) per run, to rebuild linked sets without double counting
+    ends = defaultdict(list)  # snap grid cell -> [((lon, lat), areas)] for every run and lift end
 
     for f in features(RAW / "runs.geojson"):
         p = f["properties"]
@@ -185,6 +212,8 @@ def main():
         lines = [ln for ln in map(simplified, lines_of(f["geometry"])) if ln]
         run_json = json.dumps({"n": p["name"], "d": p["difficulty"], "c": lines}, ensure_ascii=False, separators=(",", ":"))
         grade = GRADE.get(p["difficulty"], 4)
+        run_info.append((areas, grade, run_bins, lo, hi, run_json))
+        index_ends(ends, f["geometry"], areas)
         for a in areas:
             run_lines[a].append(run_json)
             bins[a].update(run_bins)
@@ -208,6 +237,7 @@ def main():
     # Operating lifts, kept per area for the map, plus each area's highest lift station.
     lift_lines = defaultdict(list)
     lift_top = {}
+    lift_info = []  # (areas, top, json) per lift, for linked sets
     for f in features(RAW / "lifts.geojson"):
         p = f["properties"]
         areas = {a["properties"]["id"] for a in p["skiAreas"]}
@@ -218,10 +248,14 @@ def main():
             continue
         top = max((c[2] for ln in lines for c in ln if c[2] is not None), default=None)
         lift_json = json.dumps({"n": p["name"], "t": p["liftType"], "c": lines}, ensure_ascii=False, separators=(",", ":"))
+        lift_info.append((areas, top, lift_json))
+        index_ends(ends, f["geometry"], areas)
         for a in areas:
             lift_lines[a].append(lift_json)
             if top is not None:
                 lift_top[a] = max(lift_top.get(a, top), top)
+
+    linked_sets = find_linked_sets(ends, parent, pass_ids, shared, run_count)
 
     out = []
     country_names = {}
@@ -259,6 +293,22 @@ def main():
                    for g, c in sorted(grade_bins[aid].items())},
         })
 
+    # Linked sets become synthetic domains; their members become its sub-areas.
+    by_id = {a["id"]: a for a in out}
+    for members in linked_sets:
+        members = [m for m in members if m in by_id]
+        if len(members) < 2:
+            continue
+        dom = linked_domain(members, by_id, parent, run_info, lift_info)
+        for m in members:
+            by_id[m]["parent"] = dom["id"]
+        run_lines[dom["id"]], lift_lines[dom["id"]] = dom.pop("_runs"), dom.pop("_lifts")
+        out.append(dom)
+    linked = sorted((a for a in out if a.get("linked")), key=lambda a: -a["km"])
+    print(f"{len(linked)} linked domains joined from touching areas:")
+    for a in linked:
+        print(f"  {a['km']:6.0f} km  {a['name']}: {', '.join(a['linked'])}")
+
     # Refuse to publish if the download was truncated or the schema changed.
     if len(out) < 3000 or not any(a["name"] == "Les Trois Vallées" for a in out):
         raise SystemExit(f"sanity check failed: only {len(out)} ski areas, or Les Trois Vallées missing")
@@ -281,6 +331,128 @@ def main():
         print(f"  skipped {n} runs: {reason}")
 
 
+def snap_cell(lon, lat):
+    return math.floor(lon / SNAP_CELL), math.floor(lat / SNAP_CELL)
+
+
+def index_ends(ends, geom, areas):
+    """Add each line's two end points, with the line's areas, to the snap grid."""
+    for ln in lines_of(geom):
+        if len(ln) >= 2:
+            for pt in (ln[0], ln[-1]):
+                ends[snap_cell(pt[0], pt[1])].append(((pt[0], pt[1]), areas))
+
+
+def top_of(parent, a):
+    while a in parent:
+        a = parent[a]
+    return a
+
+
+def find_linked_sets(ends, parent, pass_ids, shared, run_count):
+    """Top-level areas joined by touching runs or lifts, as lists of area ids, largest first.
+
+    Every run and lift vertex is checked against other areas' line ends within SNAP_M, so a run that
+    finishes at another resort's lift, or joins its piste, links the two. Runs tagged to two top-level
+    areas link them too. Links chain: A-B and B-C make one set.
+    """
+    def tops(areas):
+        return {top_of(parent, a) for a in areas if a not in pass_ids}
+
+    touches = defaultdict(set)  # (a, b) -> touching end points
+    sources = ((RAW / "runs.geojson", keep_run), (RAW / "lifts.geojson", lambda p: p["status"] == "operating"))
+    for path, wanted in sources:
+        for f in features(path):
+            p = f["properties"]
+            if not wanted(p) or not p["skiAreas"]:
+                continue
+            mine = tops(a["properties"]["id"] for a in p["skiAreas"])
+            for ln in lines_of(f["geometry"]):
+                for pt in ln:
+                    cx, cy = snap_cell(pt[0], pt[1])
+                    kx = math.cos(math.radians(pt[1])) * 111_320
+                    for dx in (-1, 0, 1):
+                        for dy in (-1, 0, 1):
+                            for q, qareas in ends.get((cx + dx, cy + dy), ()):
+                                theirs = tops(qareas)
+                                if theirs & mine or math.hypot((q[0] - pt[0]) * kx, (q[1] - pt[1]) * 111_320) > SNAP_M:
+                                    continue
+                                for a in mine:
+                                    for b in theirs:
+                                        touches[tuple(sorted((a, b)))].add(q)
+    score = Counter({pair: len(pts) for pair, pts in touches.items()})
+    for (a, b), n in shared.items():
+        ta, tb = top_of(parent, a), top_of(parent, b)
+        if ta != tb and a not in pass_ids and b not in pass_ids:
+            score[tuple(sorted((ta, tb)))] += n
+
+    root = {}
+
+    def find(x):
+        while root.get(x, x) != x:
+            x = root[x]
+        return x
+
+    linked_pairs = [pair for pair, n in score.items() if n >= LINK_MIN]
+    for a, b in linked_pairs:
+        root[find(a)] = find(b)
+    sets = defaultdict(list)
+    for a in {x for pair in linked_pairs for x in pair}:
+        sets[find(a)].append(a)
+    return [sorted(m, key=lambda a: -run_count[a]) for m in sets.values()]
+
+
+def linked_domain(members, by_id, parent, run_info, lift_info):
+    """A synthetic domain for a linked set: every run and lift of its members and their sub-areas, counted once."""
+    ms = sorted((by_id[m] for m in members), key=lambda a: -a["km"])
+    member_ids = set(members)
+    bins, grade_bins, runs, lifts = Counter(), defaultdict(Counter), [], []
+    lo, hi, lift_top = math.inf, -math.inf, None
+    for areas, grade, run_bins, rlo, rhi, run_json in run_info:
+        if any(top_of(parent, a) in member_ids for a in areas):
+            bins.update(run_bins)
+            grade_bins[grade].update(run_bins)
+            lo, hi = min(lo, rlo), max(hi, rhi)
+            runs.append(run_json)
+    for areas, ltop, lift_json in lift_info:
+        if any(top_of(parent, a) in member_ids for a in areas):
+            lifts.append(lift_json)
+            if ltop is not None:
+                lift_top = ltop if lift_top is None else max(lift_top, ltop)
+    hist = {z: m / 1000 for z, m in sorted(bins.items())}
+    total = sum(hist.values())
+    names = list(dict.fromkeys(a["name"] for a in ms if a["name"]))
+    name = next((LINKED_NAMES[nm] for nm in names if nm in LINKED_NAMES), None)
+    if not name:
+        alone = ms[0]["km"] >= LINKED_ALONE * sum(a["km"] for a in ms)
+        name = names[0] if alone or len(names) == 1 else " / ".join(names[:3]) + (f" +{len(names) - 3}" if len(names) > 3 else "")
+    placed = [a for a in ms if a["lon"] is not None]
+    w = [a["km"] or 0.01 for a in placed]
+    return {
+        # Stable across builds: the same members always give the same id.
+        "id": "linked-" + hashlib.sha1(",".join(sorted(members)).encode()).hexdigest()[:16],
+        "name": name,
+        "countries": list(dict.fromkeys(c for a in ms for c in a["countries"])),
+        "lon": sum(a["lon"] * k for a, k in zip(placed, w)) / sum(w) if placed else None,
+        "lat": sum(a["lat"] * k for a, k in zip(placed, w)) / sum(w) if placed else None,
+        "region": ms[0]["region"],
+        "parent": None,
+        "pass_network": False,
+        "linked": [a["name"] or "(unnamed)" for a in ms],
+        "runs": len(runs),
+        "km": round(total, 2),
+        "osm_km": round(sum(a["osm_km"] for a in ms), 2),
+        "min_alt": round(lo),
+        "max_alt": round(hi),
+        "lift_top": round(lift_top) if lift_top is not None else None,
+        "median_alt": round(weighted_median(hist, total)),
+        "hist": {str(z): round(km, 3) for z, km in hist.items()},
+        "gh": {str(g): {str(z): round(m / 1000, 2) for z, m in sorted(c.items()) if m >= 5} for g, c in sorted(grade_bins.items())},
+        "_runs": runs,
+        "_lifts": lifts,
+    }
+
+
 def weighted_median(hist, total):
     """Length-weighted median altitude, interpolated within the 100 m band."""
     acc = 0
@@ -292,4 +464,5 @@ def weighted_median(hist, total):
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8")  # area names in the log, on any console
     main()

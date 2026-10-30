@@ -530,7 +530,7 @@ body.mapmode .maplegend .modalsnow { display: inline-flex; }
     <p>Figures here are usually lower than a resort's published piste km, sometimes by a lot. Resorts measure in different ways: some count ski routes and itineraries, the length along the slope rather than on the map, wide pistes as several runs, or the whole of a lift pass that covers unlinked valleys. Our figure is the horizontal length of the pistes mapped in OpenStreetMap, measured the same way everywhere, so it is best used to compare domains with each other. Where a domain looks too small, its pistes may simply not all be mapped yet.</p>
 
     <h3>Linked domains</h3>
-    <p>Domains come from OpenSkiMap, which groups resorts into linked areas such as Les Trois Vallées. With "Linked domains" on, resorts inside a bigger domain are counted as part of it, and lift-pass networks of unlinked valleys, such as Dolomiti Superski, are hidden. A few linked domains aren't grouped in the data yet, so their resorts appear separately.</p>
+    <p>Domains come from OpenSkiMap, which groups resorts into linked areas such as Les Trois Vallées. Some linked domains, such as the Via Lattea, aren't grouped there, so this site joins resorts whose pistes or lifts meet: where a run or lift ends within 30 m of another resort's. With "Linked domains" on, resorts inside a bigger domain are counted as part of it, and lift-pass networks of unlinked valleys, such as Dolomiti Superski, are hidden.</p>
 
     <h3>The snow line</h3>
     <p>The snow line is a single altitude. It doesn't account for which way slopes face, latitude, glaciers or snowmaking, so treat it as a guide to altitude rather than a snow forecast.</p>
@@ -1091,7 +1091,9 @@ function drawDetail(a, thr) {
   const above = Object.entries(a.hist).reduce((s, [z, km]) => s + (+z >= thr ? km : 0), 0);
   const parent = a.parent && DATA.find(p => p.id === a.parent);
   $("#dName").textContent = a.label;
-  $("#dWhere").textContent = [a.countries.map(c => COUNTRY_NAMES[c] || c).join(", "), parent && `part of ${parent.label}`].filter(Boolean).join(", ");
+  // A linked domain the build joined from touching resorts names them, up to five.
+  const linked = a.linked && `linking ${a.linked.slice(0, 5).join(", ")}${a.linked.length > 5 ? ` and ${a.linked.length - 5} more` : ""}`;
+  $("#dWhere").textContent = [a.countries.map(c => COUNTRY_NAMES[c] || c).join(", "), parent && `part of ${parent.label}`, linked].filter(Boolean).join(", ");
   $("#crumb").textContent = `${a.region} › selected domain`;
   $("#sAbove").textContent = fmt(above) + " km";
   $("#sPct").textContent = Math.round(100 * above / a.km) + "%";

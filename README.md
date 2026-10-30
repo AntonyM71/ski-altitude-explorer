@@ -57,6 +57,8 @@ This site uses the horizontal length of what is mapped in OpenStreetMap, measure
 
 Domains come from OpenSkiMap, which lists both linked areas (Les Trois Vallées) and the resorts inside them (Méribel, Val Thorens). The build marks area B as a sub-area of A when at least 80% of B's runs are also in A. "Linked domains" then shows just the top level.
 
+OpenSkiMap doesn't group every linked domain; the Via Lattea, for example, exists only as its separate resorts. So the build also joins top-level areas that touch: where a run or lift of one ends within 30 m (`SNAP_M`) of a run or lift of another, or a run is tagged to both. Links chain, so Montgenèvre, Claviere, Sansicario, Sestriere and Sauze d'Oulx become one domain. Each joined set becomes a new domain holding every run and lift of its members once, with the members as its sub-areas. It takes a name from `LINKED_NAMES` if one of its members is listed there (for example "Sestriere" gives "Via Lattea"), otherwise its largest member's name, or the first few names joined. The build prints every joined set so they can be checked.
+
 Lift-pass networks of unlinked valleys would otherwise top the ranking. These are listed by hand in `PASS_NETWORKS` in `build_stats.py` (currently Dolomiti Superski and Ski amadé). They are never treated as a parent, and are hidden in the linked view.
 
 ### Regions
@@ -104,7 +106,7 @@ Pages can be shared with their current view: the address bar keeps the selected 
 
 ## Known issues and next steps
 
-- **Some linked domains aren't grouped in the data.** The Via Lattea (Montgenèvre, Claviere, Sansicario, Sestriere, Sauze d'Oulx) is one example, so its resorts are ranked separately. The plan is to detect links automatically where runs or lifts in different areas join, and to name known domains.
+- **Joining touching resorts can over-join.** Two resorts whose pistes meet, or that share a valley lift or train, are joined even if most skiers treat them as separate. The build prints every joined set for review.
 - **Pistes mapped as areas aren't counted**, which undercounts open bowls and some glacier skiing.
 - **A domain's region comes from its first listed country,** so a few cross-border domains sit in a neighbouring region.
 - **Grade colours use the European convention everywhere.**
