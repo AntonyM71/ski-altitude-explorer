@@ -30,10 +30,11 @@ On a computer the piste map fills the page behind frosted glass windows. Each wi
 3. The length is added to the 100 m altitude band of the segment's midpoint, for every ski area the run belongs to.
 4. A domain's total is the sum of its bands, and "km above the snow line" is the sum of the bands at or above it. Because the full histogram is stored, the snow line can move in the browser without rebuilding.
 
+**Pistes mapped only as an area.** Some pistes are mapped as an outline of the slope with no line down it; in a few resorts, such as Cairngorm, almost every piste is. An area counts as its own piste when less than 40 m of a counted run lies within 15 m of its outline; otherwise the run already covers it. Its length is estimated as the long side of a strip with the same area and perimeter, `(P/2 + sqrt((P/2)² − 4A)) / 2`, and spread evenly over the altitude between the outline's lowest and highest point. Checked on about 1,100 areas that do have a single run along them, this estimate's median is 1.03 times the run's length, and 95% fall within 25%. The map draws these pistes as filled areas.
+
 **Excluded:**
 
 - ski routes, freeride and backcountry runs;
-- pistes mapped as areas rather than lines (about 11,000 runs), since they have no length;
 - runs with no ski area.
 
 Elevation spikes, where a segment is steeper than about 63°, and implausible negative elevations are dropped.
@@ -107,7 +108,7 @@ Pages can be shared with their current view: the address bar keeps the selected 
 ## Known issues and next steps
 
 - **Joining touching resorts can over-join.** Two resorts whose pistes meet, or that share a valley lift or train, are joined even if most skiers treat them as separate. The build prints every joined set for review.
-- **Pistes mapped as areas aren't counted**, which undercounts open bowls and some glacier skiing.
+- **Pistes mapped only as areas have an estimated length.** On areas that do have a run along them, the estimate is within 25% of the run's length 95% of the time, but a branching or very irregular area can be further off.
 - **A domain's region comes from its first listed country,** so a few cross-border domains sit in a neighbouring region.
 - **Grade colours use the European convention everywhere.**
 - **One theme:** the glass style is dark only.

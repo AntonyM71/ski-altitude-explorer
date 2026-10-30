@@ -524,7 +524,7 @@ body.mapmode .maplegend .modalsnow { display: inline-flex; }
 
     <h3>How it's measured</h3>
     <p>Every downhill piste is mapped as a line with an altitude at each point. We split each line into short segments, measure each one's horizontal length, and add it to the 100 m altitude band at its midpoint. A domain's total is the sum of its bands, and "above the snow line" is the sum of the bands above it.</p>
-    <p>Only operating downhill pistes count. Ski routes, freeride and backcountry runs are left out, and so are pistes mapped as areas rather than lines, because they have no length to measure. Grades follow the European colours: OpenSkiMap's novice is green, easy blue, intermediate red, and advanced or expert black.</p>
+    <p>Only operating downhill pistes count. Ski routes, freeride and backcountry runs are left out. Some pistes are mapped only as an area, an outline of the slope with no line down it. These are counted with an estimated length: the length of a strip with the same area and perimeter, spread evenly between the area's lowest and highest point. Areas that a mapped run already runs along aren't counted twice. Grades follow the European colours: OpenSkiMap's novice is green, easy blue, intermediate red, and advanced or expert black.</p>
 
     <h3>Why sizes differ from resort brochures</h3>
     <p>Figures here are usually lower than a resort's published piste km, sometimes by a lot. Resorts measure in different ways: some count ski routes and itineraries, the length along the slope rather than on the map, wide pistes as several runs, or the whole of a lift pass that covers unlinked valleys. Our figure is the horizontal length of the pistes mapped in OpenStreetMap, measured the same way everywhere, so it is best used to compare domains with each other. Where a domain looks too small, its pistes may simply not all be mapped yet.</p>
@@ -1543,6 +1543,12 @@ function initMap() {
     if (mapReady) return;
     map.addSource("runs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     map.addSource("domains", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addSource("areas", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    // Pistes mapped only as an area: a grade-coloured fill, faded where it lies below the snow line.
+    map.addLayer({ id: "areas-fill", type: "fill", source: "areas",
+      paint: { "fill-color": ["get", "color"], "fill-opacity": ["match", ["get", "a"], 1, 0.45, 0, 0.12, 0.28] } }, "places");
+    map.addLayer({ id: "areas-edge", type: "line", source: "areas",
+      paint: { "line-color": ["get", "color"], "line-width": 1.2, "line-opacity": ["match", ["get", "a"], 1, 0.9, 0, 0.3, 0.6] } }, "places");
     const width = ["interpolate", ["linear"], ["zoom"], 9, 1, 12, 2.4, 15, 4];
     map.addLayer({ id: "runs-casing", type: "line", source: "runs", layout: { "line-cap": "round", "line-join": "round" },
       paint: { "line-color": "#ffffff", "line-opacity": ["match", ["get", "a"], 1, 0.8, 0, 0.2, 0.4],
@@ -1577,6 +1583,15 @@ function initMap() {
     });
     map.on("mouseleave", "runs", () => { popup.remove(); map.getCanvas().style.cursor = ""; });
     map.on("click", "runs", e => { popup.remove(); if (runs) openRun(runs[e.features[0].properties.i]); });
+    const areaTip = e => {
+      if (map.queryRenderedFeatures(e.point, { layers: ["runs"] }).length) return;
+      const p = e.features[0].properties;
+      map.getCanvas().style.cursor = "pointer";
+      popup.setLngLat(e.lngLat).setText(`${p.name || "Unnamed piste"} (${p.grade}, mapped as an area): about ${fmt(p.km)} km, ${fmt(p.hi)} to ${fmt(p.lo)} m`).addTo(map);
+    };
+    map.on("mousemove", "areas-fill", areaTip);
+    map.on("click", "areas-fill", areaTip);
+    map.on("mouseleave", "areas-fill", () => { popup.remove(); map.getCanvas().style.cursor = ""; });
     for (const layer of ["lifts-solid", "lifts-drag"]) {
       map.on("mousemove", layer, e => {
         const p = e.features[0].properties;
@@ -1620,6 +1635,15 @@ function runFeatures(list, thr) {
   return { type: "FeatureCollection", features };
 }
 
+// Area-only pistes: above the snow line (a 1), below it (0), or spanning it (2).
+function areaFeatures(list, thr) {
+  return { type: "FeatureCollection", features: list.map(r => {
+    const g = GRADES[gradeIndex(r.d)];
+    return { type: "Feature", properties: { a: r.lo >= thr ? 1 : r.hi < thr ? 0 : 2, color: g.color, grade: g.name, name: r.n, km: r.km, hi: r.hi, lo: r.lo },
+      geometry: { type: "MultiPolygon", coordinates: r.a.map(ring => [ring]) } };
+  }) };
+}
+
 async function loadRuns(id) {
   if (!runsCache.has(id)) {
     runsCache.set(id, fetch(`data/runs/${id}.json`, { cache: "no-cache" }).then(r => r.json()).then(d => {
@@ -1628,6 +1652,7 @@ async function loadRuns(id) {
         r.hi = zs.length ? Math.max(...zs) : 0; r.lo = zs.length ? Math.min(...zs) : 0;
       }
       d.runs.lifts = d.lifts || [];
+      d.runs.areas = d.areas || [];
       runsData.set(id, d.runs);
       return d.runs;
     }));
@@ -1642,18 +1667,24 @@ function updateMap(rows, sel, thr) {
     properties: { id: a.id, km: a.km, above: a.above, rank: a.rank, name: a.label, color: hyps(a.median_alt), sel: a.id === selectedId },
   })) });
   if (!sel) return;
-  if (runsFor === sel.id && runs) { map.getSource("runs").setData(runFeatures(runs, thr)); return; }
+  if (runsFor === sel.id && runs) {
+    map.getSource("runs").setData(runFeatures(runs, thr));
+    map.getSource("areas").setData(areaFeatures(runs.areas, thr));
+    return;
+  }
   const id = sel.id;
   loadRuns(id).then(list => {
     if (selectedId !== id) return;
     runsFor = id; runs = list;
     map.getSource("runs").setData(runFeatures(list, +$("#thr").value));
+    map.getSource("areas").setData(areaFeatures(list.areas, +$("#thr").value));
     const [liftLines, points] = liftFeatures(list.lifts);
     map.getSource("lifts").setData(liftLines);
     map.getSource("lift-stations").setData(points);
-    if (fittedId !== id && list.length) {
+    if (fittedId !== id && (list.length || list.areas.length)) {
       const b = new maplibregl.LngLatBounds();
       for (const r of list) for (const line of r.c) for (const p of line) b.extend([p[0], p[1]]);
+      for (const r of list.areas) for (const ring of r.a) for (const p of ring) b.extend(p);
       map.resize();
       const firstFit = !fittedId;
       fittedId = id; runsBounds = b;

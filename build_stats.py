@@ -14,7 +14,9 @@ from datetime import date
 from itertools import combinations
 from pathlib import Path
 
+import shapely
 from pyproj import Geod
+from shapely.geometry import LineString, shape
 
 ROOT = Path(__file__).parent
 RAW = ROOT / "data" / "raw"
@@ -29,6 +31,9 @@ SUB_AREA_SHARE = 0.8  # B is a sub-area of A if A shares >= 80% of B's runs
 PASS_NETWORKS = {"Dolomiti Superski", "Ski amadé"}
 
 # Linked domains OpenSkiMap doesn't group: top-level areas whose runs or lifts touch are joined.
+# Pistes mapped only as an area (an outline, no run line) are counted with an estimated length.
+AREA_EDGE_M = 15  # a run line this close to an area's outline counts as running along it
+AREA_LINE_M = 40  # an area with more than this much run line along it is already counted
 SNAP_M = 30  # a line end this close to another area's run or lift joins the two areas
 SNAP_CELL = 0.0005  # grid cell for the snap search, in degrees (about 40-55 m)
 LINK_MIN = 1  # touching points (plus runs tagged to both) needed to join two areas
@@ -79,7 +84,7 @@ def lines_of(geom):
         return [geom["coordinates"]]
     if geom["type"] == "MultiLineString":
         return geom["coordinates"]
-    return []  # Polygon piste areas have no meaningful length
+    return []  # piste areas: see area_pistes()
 
 
 def segments(coords):
@@ -188,6 +193,8 @@ def main():
     pass_ids = set()
     run_lines = defaultdict(list)  # area id -> JSON strings of its runs (shared between areas)
     run_info = []  # (areas, grade, bins, lo, hi, json) per run, to rebuild linked sets without double counting
+    counted_lines = []  # 2D run lines, to tell which piste areas a run already runs along
+    piste_areas = []  # (feature, areas) for piste areas, sorted out after the runs
     ends = defaultdict(list)  # snap grid cell -> [((lon, lat), areas)] for every run and lift end
 
     for f in features(RAW / "runs.geojson"):
@@ -200,6 +207,9 @@ def main():
                 pass_ids.add(a["properties"]["id"])
         if not areas:
             skipped["no ski area"] += 1
+            continue
+        if f["geometry"]["type"] in ("Polygon", "MultiPolygon"):
+            piste_areas.append((f, areas))
             continue
         segs = [s for line in lines_of(f["geometry"]) for s in segments(line)]
         if not segs:
@@ -214,15 +224,32 @@ def main():
         grade = GRADE.get(p["difficulty"], 4)
         run_info.append((areas, grade, run_bins, lo, hi, run_json))
         index_ends(ends, f["geometry"], areas)
+        counted_lines.extend(LineString([(c[0], c[1]) for c in ln]) for ln in lines if len(ln) >= 2)
         for a in areas:
             run_lines[a].append(run_json)
+            run_count[a] += 1
+        for pair in combinations(areas, 2):
+            shared[pair] += 1
+
+    # Piste areas with no run line along them are counted too, with an estimated length.
+    area_lines = defaultdict(list)  # area id -> JSON strings of its area-only pistes
+    area_only = set()  # their feature ids, so their outlines can link resorts
+    for f, areas, run_bins, grade, lo, hi, area_json in area_pistes(piste_areas, counted_lines, skipped):
+        area_only.add(f["properties"]["id"])
+        run_info.append((areas, grade, run_bins, lo, hi, None))
+        index_outline(ends, f["geometry"], areas)
+        for a in areas:
+            area_lines[a].append(area_json)
+            run_count[a] += 1
+        for pair in combinations(areas, 2):
+            shared[pair] += 1
+
+    for areas, grade, run_bins, lo, hi, _ in run_info:
+        for a in areas:
             bins[a].update(run_bins)
             grade_bins[a][grade].update(run_bins)
             r = alt_range.setdefault(a, [lo, hi])
             r[0], r[1] = min(r[0], lo), max(r[1], hi)
-            run_count[a] += 1
-        for pair in combinations(areas, 2):
-            shared[pair] += 1
 
     # Sub-area detection: B's parent is the largest A that holds most of B's runs.
     parent = {}
@@ -255,7 +282,7 @@ def main():
             if top is not None:
                 lift_top[a] = max(lift_top.get(a, top), top)
 
-    linked_sets = find_linked_sets(ends, parent, pass_ids, shared, run_count)
+    linked_sets = find_linked_sets(ends, parent, pass_ids, shared, run_count, area_only)
 
     out = []
     country_names = {}
@@ -300,6 +327,7 @@ def main():
         if len(members) < 2:
             continue
         dom = linked_domain(members, by_id, parent, run_info, lift_info)
+        area_lines[dom["id"]] = [j for m in members for j in area_lines_of(m, parent, area_lines)]
         for m in members:
             by_id[m]["parent"] = dom["id"]
         run_lines[dom["id"]], lift_lines[dom["id"]] = dom.pop("_runs"), dom.pop("_lifts")
@@ -322,7 +350,8 @@ def main():
     size = 0
     for a in out:
         path = RUNS_OUT / f"{a['id']}.json"
-        path.write_text('{"runs":[' + ",".join(run_lines[a["id"]]) + '],"lifts":[' + ",".join(lift_lines[a["id"]]) + "]}", encoding="utf-8")
+        path.write_text('{"runs":[' + ",".join(run_lines[a["id"]]) + '],"lifts":[' + ",".join(lift_lines[a["id"]])
+                        + '],"areas":[' + ",".join(dict.fromkeys(area_lines[a["id"]])) + "]}", encoding="utf-8")
         size += path.stat().st_size
     print(f"wrote {len(out)} run files to {RUNS_OUT} ({size / 1e6:.0f} MB)")
     for region, n in Counter(a["region"] for a in out if not a["parent"]).most_common():
@@ -343,13 +372,84 @@ def index_ends(ends, geom, areas):
                 ends[snap_cell(pt[0], pt[1])].append(((pt[0], pt[1]), areas))
 
 
+def outline_of(geom):
+    """The outer rings of a piste area, as lines."""
+    polys = [geom["coordinates"]] if geom["type"] == "Polygon" else geom["coordinates"]
+    return [poly[0] for poly in polys]
+
+
+def index_outline(ends, geom, areas):
+    """Add every vertex of an area's outline to the snap grid, so the area can link like a run end."""
+    for ring in outline_of(geom):
+        for pt in ring:
+            ends[snap_cell(pt[0], pt[1])].append(((pt[0], pt[1]), areas))
+
+
+def in_metres(g):
+    """g projected to metres around its own centre: plenty accurate at the scale of one piste."""
+    c = g.centroid
+    kx = math.cos(math.radians(c.y)) * 111_320
+    return shapely.transform(g, lambda xy: (xy - (c.x, c.y)) * (kx, 111_320))
+
+
+def area_pistes(piste_areas, counted_lines, skipped):
+    """Yield (feature, areas, bins, grade, lo, hi, json) for each piste area no counted run runs along.
+
+    Its length is the long side of the strip with the same area and perimeter, which on areas that do have a
+    run along them comes out at 1.03x the run's length (95% within 25%). The length is spread evenly over the
+    altitude between the outline's lowest and highest vertex.
+    """
+    tree = shapely.STRtree(counted_lines)
+    pad = AREA_EDGE_M / 111_320 * 2  # generous in degrees; the exact test is in metres
+    for f, areas in piste_areas:
+        g = shape(f["geometry"]).buffer(0)
+        if g.is_empty:
+            continue
+        near = [counted_lines[i] for i in tree.query(g.buffer(pad))]
+        if near:
+            c = g.centroid
+            kx = math.cos(math.radians(c.y)) * 111_320
+            to_m = lambda h: shapely.transform(h, lambda xy: (xy - (c.x, c.y)) * (kx, 111_320))
+            zone = to_m(g).buffer(AREA_EDGE_M)
+            if sum(to_m(ln).intersection(zone).length for ln in near) > AREA_LINE_M:
+                continue
+        m = in_metres(g)
+        half = m.length / 2
+        disc = half * half - 4 * m.area
+        length = (half + math.sqrt(disc)) / 2 if disc > 0 else math.sqrt(m.area)
+        zs = [c[2] for ring in outline_of(f["geometry"]) for c in ring if len(c) > 2 and c[2] is not None and c[2] >= MIN_ELE]
+        if not zs or length < 1:
+            skipped["piste area with no usable altitude"] += 1
+            continue
+        lo, hi = min(zs), max(zs)
+        run_bins = Counter()
+        if hi - lo < 1:
+            run_bins[int(lo // BIN) * BIN] = length
+        else:
+            for b in range(int(lo // BIN) * BIN, int(hi // BIN) * BIN + BIN, BIN):
+                run_bins[b] += length * (min(hi, b + BIN) - max(lo, b)) / (hi - lo)
+        p = f["properties"]
+        rings = [[[round(c[0], 5), round(c[1], 5)] for c in ring] for ring in outline_of(f["geometry"])]
+        area_json = json.dumps({"n": p["name"], "d": p["difficulty"], "a": rings, "lo": round(lo), "hi": round(hi), "km": round(length / 1000, 2)},
+                               ensure_ascii=False, separators=(",", ":"))
+        yield f, areas, run_bins, GRADE.get(p["difficulty"], 4), lo, hi, area_json
+
+
+def area_lines_of(a, parent, area_lines):
+    """Area-only pistes of area a and of every area below it."""
+    yield from area_lines[a]
+    for child, par in parent.items():
+        if par == a:
+            yield from area_lines_of(child, parent, area_lines)
+
+
 def top_of(parent, a):
     while a in parent:
         a = parent[a]
     return a
 
 
-def find_linked_sets(ends, parent, pass_ids, shared, run_count):
+def find_linked_sets(ends, parent, pass_ids, shared, run_count, area_only):
     """Top-level areas joined by touching runs or lifts, as lists of area ids, largest first.
 
     Every run and lift vertex is checked against other areas' line ends within SNAP_M, so a run that
@@ -367,7 +467,8 @@ def find_linked_sets(ends, parent, pass_ids, shared, run_count):
             if not wanted(p) or not p["skiAreas"]:
                 continue
             mine = tops(a["properties"]["id"] for a in p["skiAreas"])
-            for ln in lines_of(f["geometry"]):
+            outline = outline_of(f["geometry"]) if p["id"] in area_only else []
+            for ln in lines_of(f["geometry"]) + outline:
                 for pt in ln:
                     cx, cy = snap_cell(pt[0], pt[1])
                     kx = math.cos(math.radians(pt[1])) * 111_320
@@ -413,7 +514,8 @@ def linked_domain(members, by_id, parent, run_info, lift_info):
             bins.update(run_bins)
             grade_bins[grade].update(run_bins)
             lo, hi = min(lo, rlo), max(hi, rhi)
-            runs.append(run_json)
+            if run_json:
+                runs.append(run_json)
     for areas, ltop, lift_json in lift_info:
         if any(top_of(parent, a) in member_ids for a in areas):
             lifts.append(lift_json)
@@ -429,8 +531,8 @@ def linked_domain(members, by_id, parent, run_info, lift_info):
     placed = [a for a in ms if a["lon"] is not None]
     w = [a["km"] or 0.01 for a in placed]
     return {
-        # Stable across builds: the same members always give the same id.
-        "id": "linked-" + hashlib.sha1(",".join(sorted(members)).encode()).hexdigest()[:16],
+        # From the member with the most runs, so the id (and shared links to it) survive members joining or leaving.
+        "id": "linked-" + hashlib.sha1(members[0].encode()).hexdigest()[:16],
         "name": name,
         "countries": list(dict.fromkeys(c for a in ms for c in a["countries"])),
         "lon": sum(a["lon"] * k for a, k in zip(placed, w)) / sum(w) if placed else None,
@@ -439,7 +541,7 @@ def linked_domain(members, by_id, parent, run_info, lift_info):
         "parent": None,
         "pass_network": False,
         "linked": [a["name"] or "(unnamed)" for a in ms],
-        "runs": len(runs),
+        "runs": sum(1 for areas, *_ in run_info if any(top_of(parent, a) in member_ids for a in areas)),
         "km": round(total, 2),
         "osm_km": round(sum(a["osm_km"] for a in ms), 2),
         "min_alt": round(lo),
