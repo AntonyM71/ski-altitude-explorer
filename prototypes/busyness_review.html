@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Busyness review</title>
+<link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<style>
+  html, body, #map { margin: 0; height: 100%; }
+  body { font: 13px/18px system-ui, sans-serif; }
+  .panel { position: absolute; top: 10px; left: 10px; bottom: 10px; z-index: 2; width: 330px; overflow: auto; background: rgba(255,255,255,.96); padding: 10px 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+  h1 { font-size: 15px; margin: 0 0 6px; }
+  h2 { font-size: 13px; margin: 12px 0 4px; }
+  .seg { display: flex; margin: 6px 0; }
+  .seg button { flex: 1; font: inherit; padding: 5px; cursor: pointer; border: 1px solid #999; background: #fff; }
+  .seg button[aria-pressed="true"] { background: #1f6fd1; color: #fff; border-color: #1f6fd1; }
+  .ramp { height: 10px; border-radius: 3px; background: linear-gradient(90deg, #d9d9d9, #ffd166, #f77f00, #d62828, #6a040f); }
+  .ends { display: flex; justify-content: space-between; color: #555; font-size: 11px; }
+  ol { margin: 0; padding-left: 22px; }
+  li { cursor: pointer; padding: 1px 0; }
+  li:hover { text-decoration: underline; }
+  small { color: #555; }
+  code { font-size: 12px; }
+</style>
+</head>
+<body>
+<!-- Review map for the busyness model: runs the engine (busyness-engine/) on a domain's structure file
+     (data/busy/<domain id>.json) and draws it on the site's runs file (data/runs/<domain id>.json).
+     Serve the repository root locally and open prototypes/busyness_review.html?d=<domain id>. -->
+<div class="panel">
+  <h1 id="title">Modelled busyness</h1>
+  <div class="seg" role="group" aria-label="Time of day">
+    <button type="button" data-mode="day" aria-pressed="true">Day average</button>
+    <button type="button" data-mode="morning" aria-pressed="false">Morning rush</button>
+    <button type="button" data-mode="evening" aria-pressed="false">Evening rush</button>
+  </div>
+  <div class="ramp"></div>
+  <div class="ends"><span>quiet</span><span>runs 2,500+ an hour, lifts 1.6× capacity</span></div>
+  <small>Runs: skiers per hour. Lifts (dashed): demand ÷ capacity; red is full or queueing. Hover for details, click a list entry to go there.</small>
+  <small id="timing"></small>
+  <div id="lists">
+    <h2>Busiest runs</h2><ol id="topRuns"></ol>
+    <h2>Busiest lifts</h2><ol id="topLifts"></ol>
+    <h2>Quietest named runs</h2><ol id="quietRuns"></ol>
+  </div>
+</div>
+<div id="map"></div>
+<script type="module">
+import { run } from "../busyness-engine/src/index.js";
+
+const $ = id => document.getElementById(id);
+const GRADES = ["green", "blue", "red", "black", "ungraded"];
+const GRADE_OF = { novice: 0, easy: 1, intermediate: 2, advanced: 3, expert: 3, extreme: 3 };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const id = new URLSearchParams(location.search).get("d");
+const map = new maplibregl.Map({ container: "map", style: "https://tiles.openfreemap.org/styles/liberty", center: [8, 46], zoom: 6 });
+map.addControl(new maplibregl.NavigationControl(), "top-right");
+let data, mode = "day";
+
+function fail(message) {
+  $("lists").innerHTML = `<p>${message}</p><p>Run <code>uv run --group busyness python -m busyness build --domain &lt;domain id&gt;</code>, then open this page with <code>?d=</code> and the domain id.</p>`;
+}
+
+async function load() {
+  const get = async url => { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.json(); };
+  const [structure, P, site] = await Promise.all([get(`../data/busy/${encodeURIComponent(id)}.json`),
+    get("../busyness-engine/src/params.json"), get(`../data/runs/${encodeURIComponent(id)}.json`)]);
+  const t = performance.now();
+  const r = run(structure, P);
+  $("timing").textContent = ` Computed in ${Math.round(performance.now() - t)} ms.`;
+  const liftsById = {};
+  for (const l of Object.values(r.lifts)) {
+    const cur = liftsById[l.id];
+    if (!cur || l.day > cur.day) liftsById[l.id] = l;
+  }
+  const features = [];
+  for (const s of site.runs) {
+    const v = r.runs[s.i];
+    if (!v) continue;
+    for (const c of s.c) features.push({ type: "Feature", geometry: { type: "LineString", coordinates: c.map(p => [p[0], p[1]]) },
+      properties: { kind: "run", name: s.n || "(unnamed)", grade: GRADE_OF[s.d] ?? 4, len: v.len, flow: v.day, morning: v.morning,
+        evening: v.evening, commute: v.commute } });
+  }
+  for (const s of site.lifts) {
+    const l = liftsById[s.i];
+    if (!l) continue;
+    for (const c of s.c) features.push({ type: "Feature", geometry: { type: "LineString", coordinates: c.map(p => [p[0], p[1]]) },
+      properties: { kind: "lift", name: s.n || "(unnamed lift)", type: s.t, cap: l.cap, nursery: l.nursery, load: l.day,
+        peak: l.morning, evening: l.evening, down: l.down, laps: l.laps } });
+  }
+  return { title: structure.domain.name, type: "FeatureCollection", features };
+}
+
+const RUN_KEY = { day: "flow", morning: "morning", evening: "evening" }, LIFT_KEY = { day: "load", morning: "peak", evening: "evening" };
+
+function paint() {
+  const runKey = RUN_KEY[mode], liftKey = LIFT_KEY[mode];
+  map.setPaintProperty("runs", "line-color", ["interpolate", ["linear"], ["get", runKey], 0, "#d9d9d9", 300, "#ffd166", 800, "#f77f00", 1500, "#d62828", 2500, "#6a040f"]);
+  map.setPaintProperty("runs", "line-width", ["interpolate", ["linear"], ["get", runKey], 0, 1, 2500, 6]);
+  map.setPaintProperty("lifts", "line-color", ["interpolate", ["linear"], ["get", liftKey], 0, "#d9d9d9", 0.4, "#ffd166", 0.7, "#f77f00", 1, "#d62828", 1.6, "#6a040f"]);
+  const runs = data.features.filter(f => f.properties.kind === "run");
+  const lifts = data.features.filter(f => f.properties.kind === "lift" && !f.properties.nursery);
+  // Named runs, by name and grade (each run once, length-weighted); each list entry flies to one of its lines.
+  const byName = new Map();
+  const seen = new Set();
+  for (const f of runs) {
+    const p = f.properties;
+    if (p.name === "(unnamed)") continue;
+    const k = p.name + "|" + p.grade, v = byName.get(k) || { name: p.name, grade: p.grade, w: 0, len: 0, f };
+    const once = `${k}|${p.len}|${p[runKey]}`; // a run drawn in several lines counts once
+    if (!seen.has(once)) { seen.add(once); v.w += p[runKey] * p.len; v.len += p.len; }
+    byName.set(k, v);
+  }
+  const named = [...byName.values()].filter(v => v.len > 300).map(v => ({ ...v, val: v.w / v.len }));
+  const fill = (ol, items, text) => {
+    ol.textContent = "";
+    for (const it of items) { const li = document.createElement("li"); li.textContent = text(it); li.onclick = () => fly(it.f); ol.append(li); }
+  };
+  fill($("topRuns"), named.sort((a, b) => b.val - a.val).slice(0, 15), v => `${v.name} (${GRADES[v.grade]}): ${Math.round(v.val)}/h`);
+  fill($("quietRuns"), named.sort((a, b) => a.val - b.val).slice(0, 10), v => `${v.name} (${GRADES[v.grade]}): ${Math.round(v.val)}/h`);
+  const liftRows = [...new Map(lifts.map(f => [f.properties.name + f.properties.cap, f])).values()];
+  fill($("topLifts"), liftRows.map(f => ({ f, val: f.properties[liftKey] })).sort((a, b) => b.val - a.val).slice(0, 15),
+    v => `${v.f.properties.name} (${(v.f.properties.type || "lift").replace("_", " ")}): ${v.val.toFixed(1)}×`);
+}
+
+function fly(f) {
+  const b = new maplibregl.LngLatBounds();
+  for (const c of f.geometry.coordinates) b.extend(c);
+  map.fitBounds(b, { padding: { top: 80, bottom: 80, left: 400, right: 80 }, maxZoom: 15 });
+}
+
+map.once("style.load", async () => {
+  if (!id) return fail("No domain chosen.");
+  try {
+    data = await load();
+  } catch {
+    return fail(`No structure found for domain “${esc(id)}”.`);
+  }
+  $("title").textContent = `${data.title}: modelled busyness`;
+  document.title = `${data.title}: busyness`;
+  const all = new maplibregl.LngLatBounds();
+  for (const f of data.features) for (const c of f.geometry.coordinates) all.extend(c);
+  map.fitBounds(all, { padding: { top: 40, bottom: 40, left: 360, right: 40 }, duration: 0 });
+  map.addSource("b", { type: "geojson", data });
+  map.addLayer({ id: "runs", type: "line", source: "b", filter: ["==", ["get", "kind"], "run"], layout: { "line-cap": "round", "line-join": "round" }, paint: {} });
+  map.addLayer({ id: "lifts", type: "line", source: "b", filter: ["==", ["get", "kind"], "lift"], paint: { "line-width": 3, "line-dasharray": [2, 1] } });
+  paint();
+  const pop = new maplibregl.Popup({ closeButton: false, maxWidth: "320px" });
+  map.on("mousemove", "runs", e => {
+    const p = e.features[0].properties;
+    map.getCanvas().style.cursor = "pointer";
+    pop.setLngLat(e.lngLat).setHTML(`<b>${esc(p.name)}</b> (${GRADES[p.grade]})<br>Day: ${Math.round(p.flow)}/h (${Math.round(p.commute)} commuting)<br>Morning rush: ${Math.round(p.morning)}/h<br>Evening rush: ${Math.round(p.evening)}/h`).addTo(map);
+  });
+  map.on("mousemove", "lifts", e => {
+    const p = e.features[0].properties;
+    map.getCanvas().style.cursor = "pointer";
+    pop.setLngLat(e.lngLat).setHTML(`<b>${esc(p.name)}</b> (${(p.type || "lift").replace("_", " ")})<br>Capacity ${p.cap}/h<br>Day: ${p.load.toFixed(2)}× (${Math.round(p.laps)} laps)<br>Morning rush: ${p.peak.toFixed(2)}×<br>Evening rush: ${p.evening.toFixed(2)}×${p.down >= 1 ? ` (including ${Math.round(p.down)}/h riding down)` : ""}`).addTo(map);
+  });
+  for (const l of ["runs", "lifts"]) map.on("mouseleave", l, () => { pop.remove(); map.getCanvas().style.cursor = ""; });
+  document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+    mode = b.dataset.mode;
+    document.querySelectorAll(".seg button").forEach(o => o.setAttribute("aria-pressed", o === b));
+    paint();
+  });
+});
+</script>
+</body>
+</html>

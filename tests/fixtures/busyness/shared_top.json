@@ -1,0 +1,140 @@
+{
+ "format": 1,
+ "domain": {
+  "id": "shared_top",
+  "name": "shared_top"
+ },
+ "model_version": 2,
+ "fingerprint": "edf7bc51951eda87",
+ "places": {
+  "source": "none",
+  "release": null
+ },
+ "built": "fixture",
+ "z": [
+  2200,
+  1500,
+  1500
+ ],
+ "links": [
+  {
+   "a": 1,
+   "b": 0,
+   "k": "lift",
+   "len": 1000.0,
+   "rt": 490.0,
+   "cap": 2000,
+   "lift": 0
+  },
+  {
+   "a": 2,
+   "b": 0,
+   "k": "lift",
+   "len": 1038.5,
+   "rt": 505.39,
+   "cap": 2000,
+   "lift": 1
+  },
+  {
+   "a": 0,
+   "b": 1,
+   "k": "run",
+   "len": 1000.0,
+   "rt": 216.67,
+   "g": 1,
+   "grad": 0.7,
+   "run": "R1"
+  },
+  {
+   "a": 0,
+   "b": 2,
+   "k": "run",
+   "len": 1038.5,
+   "rt": 225.0,
+   "g": 1,
+   "grad": 0.6740748137999273,
+   "run": "R2"
+  }
+ ],
+ "lifts": {
+  "0": {
+   "id": "La",
+   "name": "La",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  },
+  "1": {
+   "id": "Lb",
+   "name": "Lb",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  }
+ },
+ "runs": {
+  "R1": [
+   "R1",
+   1
+  ],
+  "R2": [
+   "R2",
+   1
+  ]
+ },
+ "sectors": [
+  {
+   "name": "sector (La)",
+   "cap": 4000,
+   "share": 0.0
+  }
+ ],
+ "villages": [
+  {
+   "name": "La",
+   "sector": 0,
+   "nodes": [
+    [
+     1,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  },
+  {
+   "name": "Lb",
+   "sector": 0,
+   "nodes": [
+    [
+     2,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  }
+ ],
+ "expected": {
+  "exchange": {
+   "0": {
+    "0": 0.5,
+    "1": 0.5
+   },
+   "1": {
+    "0": 0.5,
+    "1": 0.5
+   }
+  }
+ }
+}

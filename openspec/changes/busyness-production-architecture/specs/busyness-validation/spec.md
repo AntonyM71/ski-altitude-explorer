@@ -1,0 +1,34 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: Impossible results stop the run
+A run SHALL stop with an error, without writing results, if any commuting share falls outside 0–100% or any traffic is negative. The pipeline SHALL check commuting shares before writing a structure file, and the engine SHALL check traffic before returning results.
+
+#### Scenario: A negative commuting share
+- **WHEN** a bug produces a commuting share below 0%
+- **THEN** the run exits with an error and no results are written
+
+#### Scenario: Negative traffic in the engine
+- **WHEN** a bug in the engine produces negative traffic on a link
+- **THEN** the engine reports an error instead of returning results, and the overlay says it couldn't be computed
+
+### Requirement: Changes are checked on the test domains
+Each change to the model SHALL be rerun on the test domains listed in decision 011, and their results compared with the observations. Structure files for the test domains SHALL be kept as test fixtures, and CI SHALL run the engine on them and check every observation decision 011 marks as matched.
+
+#### Scenario: A model change
+- **WHEN** a change to the model is made
+- **THEN** every test domain is rerun and decision 011's comparison table is updated
+
+#### Scenario: A change breaks an observation in CI
+- **WHEN** a change to the engine makes a matched observation fail on a test domain's fixture
+- **THEN** the CI checks fail, naming the observation
+
+## ADDED Requirements
+
+### Requirement: The two halves agree
+The pipeline and the engine SHALL be tested against the same small fixture networks, and the pipeline's exact lift-to-lift exchange shares SHALL match the engine's laps on them.
+
+#### Scenario: A fixture network
+- **WHEN** a fixture network with two lifts, a shared top station and a junction is run through both halves
+- **THEN** the pipeline's exchange shares and the engine's laps agree to within 0.1%

@@ -85,7 +85,15 @@ uv run python -m http.server    # then open http://localhost:8000/
 | `fetch.py` | Downloads `runs.geojson`, `ski_areas.geojson` and `lifts.geojson` from `tiles.openskimap.org` into `data/raw/`. |
 | `build_stats.py` | Streams the GeoJSON line by line. It writes `data/ski_area_stats.json` (about 2.4 MB): for each area, its altitude histogram, per-grade histograms, sub-area parent, region, top lift and other figures. It also writes `data/runs/<area id>.json` (34 MB in total), the simplified run and lift lines the map loads for one domain at a time. |
 | `index.html` | The whole site: a static page with no build step. It loads MapLibre GL from unpkg and fonts from Google Fonts. |
-| `.github/workflows/deploy.yml` | Rebuilds and deploys to GitHub Pages. |
+| `.github/workflows/deploy.yml` | Rebuilds and deploys to GitHub Pages, adding the last published busyness set if there is one. |
+| `busyness/` | The busyness model's structure half (Python): for each domain with at least 30 km of piste and 5 lifts, its run and lift network, villages and sectors, written to `data/busy/<domain id>.json`. See [busyness/README.md](busyness/README.md). |
+| `busyness-engine/` | The busyness model's behaviour half (JavaScript, no build step): laps, commuting, the evening rush and the views. It runs in the browser when a visitor turns on the experimental overlay, and in Node for tests (`node --test`, including the observation checks). `bin/run.mjs` prints a domain's busiest runs and lifts. |
+| `.github/workflows/busyness.yml` | Weekly: rebuilds changed domains' structure files and publishes the set as assets of the `busyness-latest` release, then triggers a deploy. |
+| `.github/workflows/test.yml` | On every push and pull request: `ruff`, `pytest` and the engine's tests. |
+| `prototypes/busyness_review.html` | A review map for checking the busyness model: open `?d=<domain id>` on a local server from the repository root. |
+| `openspec/` | Specifications ([OpenSpec](https://openspec.dev/)): what the busyness model must do, and changes to it. |
+| `docs/decisions/` | Decision records: why linked domains are joined, how piste areas are measured, and how the busyness model works. |
+| `docs/observations.md`, `docs/known-issues.md` | Observations from skiing that the busyness model is checked against, and open issues and ideas. |
 
 `data/` is git-ignored. The data is never committed; the workflow builds it fresh on every run.
 

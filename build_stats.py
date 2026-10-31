@@ -22,6 +22,7 @@ ROOT = Path(__file__).parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "ski_area_stats.json"
 RUNS_OUT = ROOT / "data" / "runs"
+DOMAINS_OUT = ROOT / "data" / "domains.json"
 SIMPLIFY_M = 30  # keep a vertex at least every 30 m along a run (or on a 15 m climb)
 
 BIN = 100  # metres
@@ -220,7 +221,8 @@ def main():
             run_bins[int(z // BIN) * BIN] += d
         lo, hi = min(z for _, z in segs), max(z for _, z in segs)
         lines = [ln for ln in map(simplified, lines_of(f["geometry"])) if ln]
-        run_json = json.dumps({"n": p["name"], "d": p["difficulty"], "c": lines}, ensure_ascii=False, separators=(",", ":"))
+        run_json = json.dumps({"i": short_id(p["id"]), "n": p["name"], "d": p["difficulty"], "c": lines},
+                              ensure_ascii=False, separators=(",", ":"))
         grade = GRADE.get(p["difficulty"], 4)
         run_info.append((areas, grade, run_bins, lo, hi, run_json))
         index_ends(ends, f["geometry"], areas)
@@ -274,7 +276,8 @@ def main():
         if not lines:
             continue
         top = max((c[2] for ln in lines for c in ln if c[2] is not None), default=None)
-        lift_json = json.dumps({"n": p["name"], "t": p["liftType"], "c": lines}, ensure_ascii=False, separators=(",", ":"))
+        lift_json = json.dumps({"i": short_id(p["id"]), "n": p["name"], "t": p["liftType"], "c": lines},
+                               ensure_ascii=False, separators=(",", ":"))
         lift_info.append((areas, top, lift_json))
         index_ends(ends, f["geometry"], areas)
         for a in areas:
@@ -322,11 +325,13 @@ def main():
 
     # Linked sets become synthetic domains; their members become its sub-areas.
     by_id = {a["id"]: a for a in out}
+    linked_members = {}  # linked domain id -> member area ids
     for members in linked_sets:
         members = [m for m in members if m in by_id]
         if len(members) < 2:
             continue
         dom = linked_domain(members, by_id, parent, run_info, lift_info)
+        linked_members[dom["id"]] = members
         area_lines[dom["id"]] = [j for m in members for j in area_lines_of(m, parent, area_lines)]
         for m in members:
             by_id[m]["parent"] = dom["id"]
@@ -354,6 +359,18 @@ def main():
                         + '],"areas":[' + ",".join(dict.fromkeys(area_lines[a["id"]])) + "]}", encoding="utf-8")
         size += path.stat().st_size
     print(f"wrote {len(out)} run files to {RUNS_OUT} ({size / 1e6:.0f} MB)")
+
+    # The domains the site lists (linked domains on), with the ski areas whose runs and lifts belong to each, so the
+    # busyness pipeline uses exactly the site's membership. A feature belongs if any of its ski areas is listed.
+    domains = {}
+    for a in out:
+        if a["parent"] or a["pass_network"]:
+            continue
+        members = linked_members.get(a["id"])
+        areas = sorted({x for m in members for x in [m, *descendants(m, parent)]}) if members else [a["id"]]
+        domains[a["id"]] = {"name": a["name"], "km": a["km"], "lifts": len(lift_lines[a["id"]]), "areas": areas}
+    DOMAINS_OUT.write_text(json.dumps(domains, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"wrote {len(domains)} domains to {DOMAINS_OUT}")
     for region, n in Counter(a["region"] for a in out if not a["parent"]).most_common():
         print(f"  {n:5} top-level areas: {region}")
     for reason, n in skipped.most_common():
@@ -441,6 +458,19 @@ def area_lines_of(a, parent, area_lines):
     for child, par in parent.items():
         if par == a:
             yield from area_lines_of(child, parent, area_lines)
+
+
+def descendants(a, parent):
+    """Every area below area a."""
+    for child, par in parent.items():
+        if par == a:
+            yield child
+            yield from descendants(child, parent)
+
+
+def short_id(feature_id):
+    """A run's or lift's id in the site's files: the start of OpenSkiMap's, unique enough within a domain."""
+    return feature_id[:12]
 
 
 def top_of(parent, a):

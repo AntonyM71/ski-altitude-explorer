@@ -1,0 +1,72 @@
+name: Busyness
+
+# Prepares the busyness overlay's structure files for every eligible domain, separately from the site build, so a
+# failure here never blocks the stats site. The published set lives as assets of the "busyness-latest" release:
+# busyness.tar.gz (data/busy/), manifest.json (domain id -> fingerprint) and the Overture places cache. Each run
+# starts from the last published set and rebuilds only domains whose fingerprint changed; a successful run uploads
+# the new set and triggers a site deploy, which picks it up. (busyness-pipeline spec; docs/decisions/012.)
+
+on:
+  schedule:
+    - cron: "47 5 * * 1" # Mondays, after the site's weekly build has fetched fresh OpenSkiMap data
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild every domain, even if unchanged
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # upload the release assets
+  actions: write # trigger the site deploy
+
+concurrency:
+  group: busyness
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The first run harvests places for every domain (about 15 s each); later runs reuse the cache.
+    timeout-minutes: 300
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Same weekly cache as the site build, so the OpenSkiMap download is shared.
+      - id: week
+        run: echo "key=openskimap-$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: ${{ steps.week.outputs.key }}
+      - run: uv run python fetch.py
+      - run: uv run python build_stats.py
+      - name: Start from the last published set and places cache
+        run: |
+          mkdir -p data/busy data/busy-cache prev
+          if gh release download busyness-latest -D prev -p busyness.tar.gz -p "places-*.json"; then
+            tar -xzf prev/busyness.tar.gz -C data/busy
+            cp prev/places-*.json data/busy-cache/ 2>/dev/null || true
+          else
+            echo "No set published yet: building every domain"
+          fi
+      - name: Build changed domains
+        run: uv run --group busyness python -m busyness build --all ${{ inputs.force && '--force' || '' }}
+      - name: Test
+        run: |
+          uv run --group busyness --group dev pytest -q
+          cd busyness-engine && node --test
+      - name: Publish the set
+        run: |
+          tar -czf busyness.tar.gz -C data/busy .
+          gh release view busyness-latest >/dev/null 2>&1 || gh release create busyness-latest --latest=false \
+            --title "Busyness structure files" \
+            --notes "Updated by the Busyness workflow. Not a software release: the site downloads these files when it deploys."
+          gh release upload busyness-latest busyness.tar.gz data/busy/manifest.json data/busy-cache/places-*.json --clobber
+      - name: Deploy the site with the new set
+        run: gh workflow run deploy.yml --ref "${{ github.ref_name }}"

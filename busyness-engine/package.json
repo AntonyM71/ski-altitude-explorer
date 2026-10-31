@@ -1,0 +1,10 @@
+{
+  "name": "busyness-engine",
+  "private": true,
+  "description": "The behaviour half of the busyness model: laps, commuting, the evening rush and views, computed from a domain's structure file. Runs in a browser worker and in Node.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,294 @@
+{
+ "format": 1,
+ "domain": {
+  "id": "two_valleys",
+  "name": "two_valleys"
+ },
+ "model_version": 2,
+ "fingerprint": "9979cb05ebec9031",
+ "places": {
+  "source": "none",
+  "release": null
+ },
+ "built": "fixture",
+ "z": [
+  2200,
+  2200,
+  2200,
+  2200,
+  1850.0,
+  1850.0,
+  1500,
+  1500,
+  1500,
+  1500
+ ],
+ "links": [
+  {
+   "a": 6,
+   "b": 0,
+   "k": "lift",
+   "len": 1000.0,
+   "rt": 490.0,
+   "cap": 2000,
+   "lift": 0
+  },
+  {
+   "a": 0,
+   "b": 4,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R1a"
+  },
+  {
+   "a": 4,
+   "b": 7,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R1a"
+  },
+  {
+   "a": 7,
+   "b": 1,
+   "k": "lift",
+   "len": 1000.0,
+   "rt": 490.0,
+   "cap": 2000,
+   "lift": 2
+  },
+  {
+   "a": 1,
+   "b": 4,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R1b"
+  },
+  {
+   "a": 4,
+   "b": 6,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R1b"
+  },
+  {
+   "a": 8,
+   "b": 2,
+   "k": "lift",
+   "len": 1000.0,
+   "rt": 490.0,
+   "cap": 2000,
+   "lift": 4
+  },
+  {
+   "a": 2,
+   "b": 5,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R2a"
+  },
+  {
+   "a": 5,
+   "b": 9,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R2a"
+  },
+  {
+   "a": 9,
+   "b": 3,
+   "k": "lift",
+   "len": 1000.0,
+   "rt": 490.0,
+   "cap": 2000,
+   "lift": 6
+  },
+  {
+   "a": 3,
+   "b": 5,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R2b"
+  },
+  {
+   "a": 5,
+   "b": 8,
+   "k": "run",
+   "len": 640.3,
+   "rt": 138.74,
+   "g": 1,
+   "grad": 0.5466081666101212,
+   "run": "R2b"
+  }
+ ],
+ "lifts": {
+  "0": {
+   "id": "L1a",
+   "name": "L1a",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  },
+  "2": {
+   "id": "L1b",
+   "name": "L1b",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  },
+  "4": {
+   "id": "L2a",
+   "name": "L2a",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 1,
+   "day_sectors": {
+    "1": 1.0
+   }
+  },
+  "6": {
+   "id": "L2b",
+   "name": "L2b",
+   "type": "chair_lift",
+   "cap": 2000,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 1,
+   "day_sectors": {
+    "1": 1.0
+   }
+  }
+ },
+ "runs": {
+  "R1a": [
+   "R1a",
+   1
+  ],
+  "R1b": [
+   "R1b",
+   1
+  ],
+  "R2a": [
+   "R2a",
+   1
+  ],
+  "R2b": [
+   "R2b",
+   1
+  ]
+ },
+ "sectors": [
+  {
+   "name": "sector (L1a)",
+   "cap": 4000,
+   "share": 0.3
+  },
+  {
+   "name": "sector (L2a)",
+   "cap": 4000,
+   "share": 0.3
+  }
+ ],
+ "villages": [
+  {
+   "name": "L1a",
+   "sector": 0,
+   "nodes": [
+    [
+     6,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  },
+  {
+   "name": "L1b",
+   "sector": 0,
+   "nodes": [
+    [
+     7,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  },
+  {
+   "name": "L2a",
+   "sector": 1,
+   "nodes": [
+    [
+     8,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  },
+  {
+   "name": "L2b",
+   "sector": 1,
+   "nodes": [
+    [
+     9,
+     2000
+    ]
+   ],
+   "cap": 2000,
+   "skiers": 571.4
+  }
+ ],
+ "expected": {
+  "exchange": {
+   "0": {
+    "0": 0.5,
+    "2": 0.5
+   },
+   "2": {
+    "0": 0.5,
+    "2": 0.5
+   },
+   "4": {
+    "4": 0.5,
+    "6": 0.5
+   },
+   "6": {
+    "4": 0.5,
+    "6": 0.5
+   }
+  }
+ }
+}

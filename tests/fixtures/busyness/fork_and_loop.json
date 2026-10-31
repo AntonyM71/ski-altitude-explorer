@@ -1,0 +1,203 @@
+{
+ "format": 1,
+ "domain": {
+  "id": "fork_and_loop",
+  "name": "fork_and_loop"
+ },
+ "model_version": 2,
+ "fingerprint": "64ed1fbb958bfa1a",
+ "places": {
+  "source": "none",
+  "release": null
+ },
+ "built": "fixture",
+ "z": [
+  2395,
+  2050,
+  1983.092,
+  1950,
+  1400,
+  1400,
+  1397.5
+ ],
+ "links": [
+  {
+   "a": 6,
+   "b": 0,
+   "k": "lift",
+   "len": 1500.0,
+   "rt": 390.0,
+   "cap": 2400,
+   "lift": 0
+  },
+  {
+   "a": 0,
+   "b": 4,
+   "k": "run",
+   "len": 1655.3,
+   "rt": 307.42,
+   "g": 2,
+   "grad": 0.604122093330177,
+   "run": "Red"
+  },
+  {
+   "a": 0,
+   "b": 2,
+   "k": "run",
+   "len": 717.6,
+   "rt": 155.49,
+   "g": 3,
+   "grad": 0.604122093330177,
+   "run": "Black",
+   "cm": 717.6
+  },
+  {
+   "a": 2,
+   "b": 5,
+   "k": "run",
+   "len": 937.7,
+   "rt": 203.17,
+   "g": 3,
+   "grad": 0.604122093330177,
+   "run": "Black",
+   "cm": 937.7
+  },
+  {
+   "a": 1,
+   "b": 2,
+   "k": "run",
+   "len": 605.6,
+   "rt": 118.75,
+   "g": 1,
+   "grad": 0.08304547985373996,
+   "run": "Cross"
+  },
+  {
+   "a": 2,
+   "b": 3,
+   "k": "run",
+   "len": 598.7,
+   "rt": 117.39,
+   "g": 1,
+   "grad": 0.08304547985373996,
+   "run": "Cross"
+  },
+  {
+   "a": 5,
+   "b": 0,
+   "k": "lift",
+   "len": 1712.3,
+   "rt": 774.94,
+   "cap": 1800,
+   "lift": 4
+  },
+  {
+   "a": 4,
+   "b": 6,
+   "k": "run",
+   "len": 650.4,
+   "rt": 569.1,
+   "g": 0,
+   "grad": 0.007688668946743489,
+   "run": "Home"
+  },
+  {
+   "a": 0,
+   "b": 6,
+   "k": "download",
+   "len": 1500.0,
+   "rt": 390.0,
+   "cap": 2400,
+   "lift": 0
+  }
+ ],
+ "lifts": {
+  "0": {
+   "id": "G",
+   "name": "G",
+   "type": "gondola",
+   "cap": 2400,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  },
+  "4": {
+   "id": "C",
+   "name": "C",
+   "type": "chair_lift",
+   "cap": 1800,
+   "cap_known": true,
+   "nursery": false,
+   "sector": 0,
+   "day_sectors": {
+    "0": 1.0
+   }
+  }
+ },
+ "runs": {
+  "Red": [
+   "Red",
+   2
+  ],
+  "Black": [
+   "Black",
+   3
+  ],
+  "Cross": [
+   "Cross",
+   1
+  ],
+  "Home": [
+   "Home",
+   0
+  ]
+ },
+ "sectors": [
+  {
+   "name": "sector (G)",
+   "cap": 4200,
+   "share": 0.0
+  }
+ ],
+ "villages": [
+  {
+   "name": "G",
+   "sector": 0,
+   "nodes": [
+    [
+     6,
+     2400
+    ]
+   ],
+   "cap": 2400,
+   "skiers": 685.7
+  },
+  {
+   "name": "C",
+   "sector": 0,
+   "nodes": [
+    [
+     5,
+     1800
+    ]
+   ],
+   "cap": 1800,
+   "skiers": 514.3
+  }
+ ],
+ "expected": {
+  "exchange": {
+   "0": {
+    "0": 0.58765,
+    "4": 0.112103
+   },
+   "4": {
+    "0": 0.58765,
+    "4": 0.112103
+   }
+  }
+ }
+}

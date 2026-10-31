@@ -39,6 +39,20 @@ jobs:
           cp index.html _site/
           cp data/ski_area_stats.json _site/data/
           cp -r data/runs _site/data/
+      # The busyness overlay: the engine, and the last structure files the Busyness workflow published. Without a
+      # published set the site deploys as usual, with no overlay.
+      - name: Add the busyness overlay
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site/busyness-engine _site/data/busy
+          cp -r busyness-engine/src _site/busyness-engine/
+          if gh release download busyness-latest -p busyness.tar.gz -D busy-set; then
+            tar -xzf busy-set/busyness.tar.gz -C _site/data/busy
+            echo "Busyness overlay for $(ls _site/data/busy | grep -c '\.json$') files"
+          else
+            echo "No busyness set published yet: deploying without the overlay"
+          fi
       - uses: actions/upload-pages-artifact@v4
         with:
           path: _site

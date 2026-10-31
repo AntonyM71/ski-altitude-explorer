@@ -1,0 +1,44 @@
+schema: spec-driven
+
+context: |
+  Ski Altitude Explorer: a static site of ski-area statistics built from OpenSkiMap data (build_stats.py, index.html),
+  plus a busyness model (issue #3): busyness/ (Python, structure) and busyness-engine/ (JavaScript, behaviour).
+  Rationale lives in docs/decisions/ (analytical decision records); observations from skiing in docs/observations.md;
+  open problems in docs/known-issues.md. Specs say what the system does; records say why.
+
+rules:
+  specs:
+    - Keep requirements and scenarios abstract (a black crossed by easier runs, a village with one small lift),
+      not named resorts, runs or lifts. Named examples belong in the decision records and docs/observations.md.
+    - Name tunable parameters by their constant in the code, such as `SNAP_M`, alongside the value.
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
