@@ -47,11 +47,19 @@ Blacks SHALL be scaled by committed length, as in busyness-laps. Each group SHAL
 - **AND** strong skiers take the black
 
 ### Requirement: Routes vary
-Routes SHALL be averaged over 30 draws (`DRAWS`), each varying every link's time by about ±30% (`NOISE`). Run times SHALL also be scaled by gradient: near-flat runs ×1.4, runs steeper than 45% on average ×1.3.
+Routes SHALL be averaged over 30 draws (`DRAWS`), each varying every link's time by about ±30% (`NOISE`). Run times SHALL also be scaled by gradient: near-flat runs ×1.4, runs steeper than 45% on average ×1.3. The draws SHALL come from a seeded random sequence (`SEED`), so the same structure and parameters give the same result every time.
 
 #### Scenario: Two nearly equal routes
 - **WHEN** two routes take almost the same time
 - **THEN** commuters use both, not just the quicker
+
+#### Scenario: Running twice
+- **WHEN** the engine runs twice on the same structure file in the same environment
+- **THEN** both runs give identical traffic on every link
+
+#### Scenario: Different browsers
+- **WHEN** the engine runs on the same structure file in two different browsers
+- **THEN** traffic on every link agrees to within 0.1%
 
 ### Requirement: End-of-day conditions
 On the way home in the evening, reds SHALL feel ×1.2 and blacks ×1.6 harder (`EVENING_FEEL`), on top of each group's weights, for tired legs and worse snow. The black penalty SHALL apply in full to every black, whatever its committed length: a way out makes a black less daunting to start, not easier at the end of the day.
