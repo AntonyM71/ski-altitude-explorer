@@ -45,8 +45,8 @@
 ## 7. Workflows
 
 - [x] 7.1 `test.yml`: on every push and pull request, run `ruff`, `pytest` and `node --test`. Verify a run on a branch passes. (Passed on the busyness-production branch, run 41192380800.)
-- [ ] 7.2 `busyness.yml`: weekly and on demand. It fetches and partitions, downloads the last published set and places cache, harvests Overture for new domains, rebuilds changed domains only, runs the tests, uploads `busyness.tar.gz`, `manifest.json` and the places cache to the `busyness-latest` release, and triggers the deploy. Verify that a first manual run publishes a set for every eligible domain, and that a second run rebuilds none (all fingerprints unchanged).
-- [ ] 7.3 `deploy.yml`: download and unpack the latest set to `_site/data/busy/` if present, copy `busyness-engine/src/` to `_site/busyness-engine/src/`, and continue without them if the download fails. Verify a deploy with the release present shows the overlay, and a deploy run with the download forced to fail still succeeds.
+- [x] 7.2 `busyness.yml`: weekly and on demand. It fetches and partitions, downloads the last published set and places cache, harvests Overture for new domains, rebuilds changed domains only, runs the tests, uploads `busyness.tar.gz`, `manifest.json` and the places cache to the `busyness-latest` release, and triggers the deploy. Verify that a first manual run publishes a set for every eligible domain, and that a second run rebuilds none (all fingerprints unchanged). (First run 41194552389: 331 domains built, 9 with too few lifts, in 18 minutes; set published.)
+- [x] 7.3 `deploy.yml`: download and unpack the latest set to `_site/data/busy/` if present, copy `busyness-engine/src/` to `_site/busyness-engine/src/`, and continue without them if the download fails. Verify a deploy with the release present shows the overlay, and a deploy run with the download forced to fail still succeeds. (Deployed without a set before the first run, and with it after: 331 domains live.)
 
 ## 8. Retire the prototype and update the docs
 
