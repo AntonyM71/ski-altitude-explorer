@@ -80,21 +80,36 @@ function weightedQuantile(pairs, q) {
 }
 
 /**
- * Bands within the domain: 0 quiet, 1 moderate, 2 busy, 3 busiest, split at the BANDS quantiles. Runs are weighted by
- * length; lifts (not nursery lifts) count once each.
+ * Runs: bands within the domain, 0 quiet, 1 moderate, 2 busy, 3 busiest, split at the BANDS quantiles of
+ * length-weighted traffic. Lifts: fixed bands of load (demand / capacity) at LIFT_LOAD_BANDS, the same in every
+ * domain: 0 under 50%, 1 to 80%, 2 to 100%, 3 over capacity (014). Nursery lifts carry no laps and get null.
  */
 export function bands(summary, P) {
   const out = { runs: {}, lifts: {}, thresholds: { runs: {}, lifts: {} } };
   const band = (x, cuts) => cuts.filter((c) => x > c).length;
   for (const v of VIEWS) {
     const runCuts = P.BANDS.map((q) => weightedQuantile(Object.values(summary.runs).map((r) => [r[v], r.len]), q));
-    const proper = Object.values(summary.lifts).filter((l) => !l.nursery);
-    const liftCuts = P.BANDS.map((q) => weightedQuantile(proper.map((l) => [l[v], 1]), q));
     out.thresholds.runs[v] = runCuts;
-    out.thresholds.lifts[v] = liftCuts;
+    out.thresholds.lifts[v] = P.LIFT_LOAD_BANDS;
     for (const [id, r] of Object.entries(summary.runs)) (out.runs[id] ||= {})[v] = band(r[v], runCuts);
     for (const [k, l] of Object.entries(summary.lifts)) {
-      (out.lifts[k] ||= {})[v] = l.nursery ? 0 : band(l[v], liftCuts);
+      (out.lifts[k] ||= {})[v] = l.nursery ? null : band(l[v], P.LIFT_LOAD_BANDS);
+    }
+  }
+  return out;
+}
+
+/**
+ * What the site needs per lift: by lift id, for each view, [band, load]. A lift mapped in several pieces takes its most
+ * loaded piece. Nursery lifts have a null band.
+ */
+export function liftsForSite(structure, result) {
+  const out = {};
+  for (const [key, l] of Object.entries(result.lifts)) {
+    const id = structure.lifts[key].id;
+    const cur = (out[id] ||= {});
+    for (const v of VIEWS) {
+      if (!cur[v] || l[v] > cur[v][1]) cur[v] = [result.bands.lifts[key][v], l[v]];
     }
   }
   return out;

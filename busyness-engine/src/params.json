@@ -1,5 +1,5 @@
 {
-  "_about": "Behaviour constants of the busyness model, shared by the engine (JavaScript) and the structure pipeline (Python, for sectors). Grade-indexed arrays run 0 green, 1 blue, 2 red, 3 black, 4 ungraded. Rationale: docs/decisions/006, 009, 010.",
+  "_about": "Behaviour constants of the busyness model, shared by the engine (JavaScript) and the structure pipeline (Python, for sectors). Grade-indexed arrays run 0 green, 1 blue, 2 red, 3 black, 4 ungraded. Rationale: docs/decisions/006, 009, 010, 014.",
   "LIFT_PULL": 800,
   "GRADE_PULL": [1.0, 1.0, 0.8, 0.4, 0.7],
   "GRADIENT_PULL": { "flat": [[0.06, 0.35], [0.10, 0.7]], "steep": [0.45, 0.6] },
@@ -26,5 +26,6 @@
   "DAY_HOURS": 6,
   "PEAK_HOURS": 1.5,
   "RAMP": 0.4,
-  "BANDS": [0.5, 0.8, 0.95]
+  "BANDS": [0.5, 0.8, 0.95],
+  "LIFT_LOAD_BANDS": [0.5, 0.8, 1.0]
 }
