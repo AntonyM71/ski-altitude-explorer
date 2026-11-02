@@ -47,11 +47,15 @@ Blacks SHALL be scaled by committed length, as in busyness-laps. Each group SHAL
 - **AND** strong skiers take the black
 
 ### Requirement: Routes vary
-Routes SHALL be averaged over 30 draws (`DRAWS`), each varying every link's time by about ±30% (`NOISE`). Run times SHALL also be scaled by gradient: near-flat runs ×1.4, runs steeper than 45% on average ×1.3. The draws SHALL come from a seeded random sequence (`SEED`), so the same structure and parameters give the same result every time.
+Routes SHALL be averaged over 30 draws (`DRAWS`), each varying every link's time by about ±30% (`NOISE`). Run times SHALL also be scaled by gradient: near-flat runs ×1.4, runs steeper than 45% on average ×1.3. A lift's time SHALL include its modelled wait in the view being routed (busyness-queues). The draws SHALL come from a seeded random sequence (`SEED`), so the same structure and parameters give the same result every time.
 
 #### Scenario: Two nearly equal routes
 - **WHEN** two routes take almost the same time
 - **THEN** commuters use both, not just the quicker
+
+#### Scenario: A queue on the way
+- **WHEN** a route's lift has a 15-minute queue in the morning rush
+- **THEN** that route takes 15 minutes longer for commuters setting out
 
 #### Scenario: Running twice
 - **WHEN** the engine runs twice on the same structure file in the same environment

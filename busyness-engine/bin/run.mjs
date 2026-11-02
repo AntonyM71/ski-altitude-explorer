@@ -47,6 +47,7 @@ if (args.includes("--json")) {
     console.log(`${view}: busiest lifts (demand / capacity)`);
     lifts.sort((a, b) => b[view] - a[view]).slice(0, top).forEach((l, i) =>
       console.log(`  ${String(i + 1).padStart(2)}. ${l.name} ${l[view].toFixed(2)}x` +
+        (l.wait[view] >= 30 ? `, queue ${Math.round(l.wait[view] / 60)} min` : "") +
         (view === "evening" && l.down ? ` (${Math.round(l.down)} an hour riding down)` : "")));
   }
 }

@@ -15,9 +15,11 @@ import { gaussian } from "./random.js";
  * @param {string} [opts.ability]  needed in the evening
  * @param {boolean} [opts.evening]
  * @param {Float64Array} [opts.downPenalty]  per link: how much slower an overfull ride down feels
+ * @param {Float64Array} [opts.wait]  per link: a lift's wait beyond loading, in seconds, in the view being routed
  * @returns {Float64Array}
  */
-export function routeTimes(net, P, { feel, laps, rnd = null, ability = null, evening = false, downPenalty = null }) {
+export function routeTimes(net, P, { feel, laps, rnd = null, ability = null, evening = false, downPenalty = null,
+  wait = null }) {
   const { L } = net;
   const times = new Float64Array(L.length);
   for (let i = 0; i < L.length; i++) {
@@ -30,7 +32,7 @@ export function routeTimes(net, P, { feel, laps, rnd = null, ability = null, eve
       }
       t = l.rt * P.DOWNLOAD_FEEL[ability] * (downPenalty ? downPenalty[i] : 1);
     } else {
-      t = l.rt;
+      t = l.rt + (wait && l.k === "lift" ? wait[i] : 0); // a queue on the way adds its wait (busyness-queues)
     }
     if (l.k === "run") {
       t *= byGrade(l, feel, P);
@@ -54,10 +56,11 @@ function spread(net, ends, r, home, reverse, amount, acc) {
 
 /**
  * One routing pass over DRAWS draws: commuters' trips out and home (per day), and locals' trips home in the evening
- * rush (per hour). Each pass starts the random sequence afresh from SEED.
+ * rush (per hour), with lift waits ({morning, evening}) in their route times. Each pass starts the random sequence
+ * afresh from SEED.
  * @returns {{out: Float64Array, back: Float64Array, evening: Float64Array}}
  */
-export function routeEveryone(net, P, { laps, demand, ends, downPenalty }) {
+export function routeEveryone(net, P, { laps, demand, ends, downPenalty, waits = {} }) {
   const { L, outs, structure } = net;
   const { sectors, villages, lifts } = structure;
   const out = new Float64Array(L.length);
@@ -66,8 +69,9 @@ export function routeEveryone(net, P, { laps, demand, ends, downPenalty }) {
   const rnd = gaussian(P.SEED);
   for (let draw = 0; draw < P.DRAWS; draw++) {
     for (const [ability, { share, feel }] of Object.entries(P.ABILITIES)) {
-      const times = routeTimes(net, P, { feel, laps, rnd });
-      const homeTimes = routeTimes(net, P, { feel, laps, rnd, ability, evening: true, downPenalty });
+      // Setting out meets the morning's queues; going home, the evening's.
+      const times = routeTimes(net, P, { feel, laps, rnd, wait: waits.morning });
+      const homeTimes = routeTimes(net, P, { feel, laps, rnd, ability, evening: true, downPenalty, wait: waits.evening });
       villages.forEach((v, vi) => {
         // People set off from, and return to, their own part of the village: each station's share is its lifts'.
         for (const [n, stationCap] of v.nodes) {

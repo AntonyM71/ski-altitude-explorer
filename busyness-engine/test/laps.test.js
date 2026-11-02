@@ -37,6 +37,49 @@ test("a 2,000 lift beside two ordinary blue runs takes 2.5 / 4.5 of the skiers",
   assert.deepEqual(from1.map(Math.round), [2500, 1000, 1000]);
 });
 
+test("a lift with a 10-minute queue pulls half as much: two equal lifts split a third and two thirds", () => {
+  const s = { z: [2000, 1900, 1500, 1400],
+    links: [run(0, 1), lift(1, 0, 2000, 0), lift(2, 0, 2000, 1), lift(3, 0, 2000, 2), run(1, 2), run(1, 3)],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 }, 2: { sector: 0 } }, sectors: [{ share: 0 }] };
+  const net = network(s);
+  const wait = new Float64Array(s.links.length);
+  wait[2] = 600; // ten minutes beyond loading
+  const pull = pulls(net, P, wait);
+  assert.equal(pull[2], 1.25);
+  assert.equal(pull[3], 2.5);
+  assert.ok(Math.abs(pull[2] / (pull[2] + pull[3]) - 1 / 3) < 1e-12);
+  // The busyness-laps scenario: the queued lift beside two blue runs takes 1.25 / 3.25.
+  assert.ok(Math.abs(pull[2] / (pull[2] + 1 + 1) - 1.25 / 3.25) < 1e-12);
+});
+
+test("a walk to a nearby lift pulls like that lift: a gondola's bottom splits 3.125 to 1.875", () => {
+  const s = { z: [2300, 1795, 2600, 1810],
+    links: [lift(1, 0, 2500, 0), lift(3, 2, 1500, 1), { a: 1, b: 3, k: "walk", len: 184, rt: 184 }],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
+  const pull = pulls(network(s), P);
+  assert.equal(pull[0], 3.125);
+  assert.equal(pull[2], 1.875);
+});
+
+test("queues are seen ahead: of two equal blue runs, the one ending at a 10-minute queue takes a third", () => {
+  // Junction 0 offers two blue runs: to junction 1 (a lift with a queue) and junction 2 (a lift with none).
+  const s = { z: [2000, 1500, 1500, 2500],
+    links: [run(0, 1), run(0, 2), lift(1, 3, 2000, 0), lift(2, 3, 2000, 1), run(3, 0)],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
+  const net = network(s);
+  const wait = new Float64Array(s.links.length);
+  wait[2] = 600;
+  const pull = pulls(net, P, wait);
+  assert.ok(Math.abs(pull[0] - 0.5) < 1e-12, "a run that ends at a queue: its pull halves to 0.5");
+  assert.ok(Math.abs(pull[0] / (pull[0] + pull[1]) - 1 / 3) < 1e-12);
+});
+
+test("with no waits, pulls are exactly today's", () => {
+  const s = fixture("fork_and_loop");
+  const net = network(s);
+  assert.deepEqual(Array.from(pulls(net, P, new Float64Array(s.links.length))), Array.from(pulls(net, P)));
+});
+
 test("near-flat runs pull 0.35 of a normal run; very steep 0.6", () => {
   assert.equal(gradientPull(0.03, P.GRADIENT_PULL), 0.35);
   assert.equal(gradientPull(0.08, P.GRADIENT_PULL), 0.7);

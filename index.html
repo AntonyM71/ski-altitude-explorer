@@ -504,10 +504,10 @@ body.mapmode .maplegend .modalsnow { display: inline-flex; }
       </div>
       <div class="maplegend glass">
         <span class="legend" id="gradeLegend"><span><i style="background:#3ee07f"></i>green</span><span><i style="background:#3ea2ff"></i>blue</span><span><i style="background:#ff4d5e"></i>red</span><span><i style="background:#14181d;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>black</span><span class="faded">faded below the snow line; click a piste for its profile</span></span>
-        <span class="legend" id="busyLegend" hidden><span class="legendrow"><span class="busynote">Runs, for this domain</span><span><i style="background:#7f93a6"></i>quiet</span><span><i style="background:#ffd166"></i>moderate</span><span><i style="background:#f77f00"></i>busy</span><span><i style="background:#e3263a"></i>busiest</span></span><span class="legendrow"><span class="busynote">Lifts, of capacity</span><span><i style="background:#8a6ad8;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>under 50%</span><span><i style="background:#6a44c8;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>50–80%</span><span><i style="background:#4a24a0;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>80–100%</span><span><i style="background:#2a0d66;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>over 100%</span></span></span>
+        <span class="legend" id="busyLegend" hidden><span class="legendrow"><span class="busynote">Runs, for this domain</span><span><i style="background:#7f93a6"></i>quiet</span><span><i style="background:#ffd166"></i>moderate</span><span><i style="background:#f77f00"></i>busy</span><span><i style="background:#e3263a"></i>busiest</span></span><span class="legendrow"><span class="busynote">Lifts, of capacity</span><span><i style="background:#8a6ad8;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>under 50%</span><span><i style="background:#6a44c8;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>50–100%</span><span><i style="background:#4a24a0;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>queue under 5 min</span><span><i style="background:#2a0d66;box-shadow:0 0 0 1px rgba(255,255,255,.7)"></i>queue 5 min+</span></span></span>
         <label class="lifttoggle"><input type="checkbox" id="showLifts" checked> Lifts</label>
         <span class="busyctl" id="busyCtl" hidden>
-          <label class="lifttoggle" title="An experimental model: runs by how busy they are compared with the rest of this domain, lifts by modelled demand against their capacity. Not a count of crowds or queues"><input type="checkbox" id="showBusy"> Busyness <small>(experimental)</small></label>
+          <label class="lifttoggle" title="An experimental model: runs by how busy they are compared with the rest of this domain, lifts by modelled demand against their capacity and modelled queues. Not a count of crowds"><input type="checkbox" id="showBusy"> Busyness <small>(experimental)</small></label>
           <span class="busyview" id="busyView" role="group" aria-label="Time of day" hidden><button type="button" data-v="day" aria-pressed="true">Day</button><button type="button" data-v="morning" aria-pressed="false">Morning</button><button type="button" data-v="evening" aria-pressed="false">Evening</button></span>
           <span class="busystatus" id="busyStatus" aria-live="polite"></span>
         </span>
@@ -1509,9 +1509,9 @@ function liftFeatures(lifts) {
   for (const l of lifts) {
     const zs = l.c.flat().map(p => p[2]).filter(z => z != null);
     const cat = liftCat(l.t);
-    const [b, load] = busyBand("lifts", l.i) || []; // nursery lifts have no band: plain ink, no load
+    const [b, load, wait] = busyBand("lifts", l.i) || []; // nursery lifts have no band: plain ink, no load
     const props = { cat, type: (l.t || "lift").replace(/_/g, " "), name: l.n,
-      lo: zs.length ? Math.min(...zs) : 0, hi: zs.length ? Math.max(...zs) : 0, ...(b != null && { b, load }) };
+      lo: zs.length ? Math.min(...zs) : 0, hi: zs.length ? Math.max(...zs) : 0, ...(b != null && { b, load, wait }) };
     for (const line of l.c) {
       lines.push({ type: "Feature", properties: props, geometry: { type: "LineString", coordinates: line } });
       for (const p of [line[0], line[line.length - 1]]) stations.push(point({ cat: "station" }, p));
@@ -1624,7 +1624,7 @@ function initMap() {
     for (const layer of ["lifts-solid", "lifts-drag"]) {
       map.on("mousemove", layer, e => {
         const p = e.features[0].properties;
-        popup.setLngLat(e.lngLat).setText(`${p.name || "Unnamed lift"} (${p.type}): ${fmt(p.lo)} to ${fmt(p.hi)} m${liftBusyText(p.load)}`).addTo(map);
+        popup.setLngLat(e.lngLat).setText(`${p.name || "Unnamed lift"} (${p.type}): ${fmt(p.lo)} to ${fmt(p.hi)} m${liftBusyText(p.load, p.wait)}`).addTo(map);
       });
       map.on("mouseleave", layer, () => popup.remove());
     }
@@ -1738,7 +1738,8 @@ function updateMap(rows, sel, thr) {
 const BAND_COLORS = ["#7f93a6", "#ffd166", "#f77f00", "#e3263a"];
 const BAND_NAMES = ["quiet", "moderate", "busy", "busiest"];
 const BAND_COLOR = ["match", ["get", "b"], 0, BAND_COLORS[0], 1, BAND_COLORS[1], 2, BAND_COLORS[2], BAND_COLORS[3]];
-// Lifts by load against capacity (014): under 50%, to 80%, to 100%, over. One purple ramp, light to dark, so a lift
+// Lifts by load against capacity, or by queue (014, 015): under 50%, 50% or more with no queue, a queue under
+// 5 minutes, a longer queue. One purple ramp, light to dark, so a lift
 // never reads as a run's band or a piste grade. Checked with the dataviz validator (--ordinal): light end 2.1-3.6:1 on
 // every relief tint up to 3,000 m, and 3.0:1 or better on the white casing drawn under lift lines, rock included.
 const LIFT_BAND_COLORS = ["#8a6ad8", "#6a44c8", "#4a24a0", "#2a0d66"];
@@ -1758,9 +1759,11 @@ function busyBand(kind, id) {
 }
 const busyText = b => (b == null ? "" :
   `. Busyness ${VIEW_NAMES[busyView]}: ${BAND_NAMES[b]} for this domain (a modelled ranking, not a count of crowds or queues)`);
-// To the nearest 10%, but never "100%" for a lift in the over-capacity band.
-const liftBusyText = load => (load == null ? "" :
-  `. Busyness ${VIEW_NAMES[busyView]}: modelled at ${load > 1 && load < 1.05 ? "just over 100" : Math.round(load * 10) * 10}% of capacity`);
+// A lift with a queue (at least 30 s beyond loading) gives its modelled wait to the nearest minute; otherwise its load
+// to the nearest 10%.
+const liftBusyText = (load, wait) => (load == null ? "" : wait >= 30
+  ? `. Busyness ${VIEW_NAMES[busyView]}: modelled queue about ${Math.max(1, Math.round(wait / 60))} min`
+  : `. Busyness ${VIEW_NAMES[busyView]}: modelled at ${Math.round(load * 10) * 10}% of capacity`);
 
 function syncBusyCtl(id) {
   const has = !!busyIds && busyIds.has(id);

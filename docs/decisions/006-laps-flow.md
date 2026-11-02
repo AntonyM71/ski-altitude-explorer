@@ -13,7 +13,7 @@ Most skiers spend the day lapping lifts near where they are. We need to decide, 
 - **Where skiers come from.** Each lift's riders leave its top: its capacity, less its sector's share of commuters (34–56% in the test domains; see 009). They ski down until a lift takes them.
 - **Nursery areas have no pull.** Lapping skiers never choose a nursery lift or slope (005); those are left to ski school.
 - **How they split.** At each junction they divide in proportion to each option's pull:
-  - **Lifts** pull by capacity ÷ 800 (`LIFT_PULL`), so a 2,000-an-hour chairlift draws as many skiers as 2.5 runs. Skiers mostly take the next lift rather than skiing to the valley floor.
+  - **Lifts** pull by capacity ÷ 800 (`LIFT_PULL`), divided by their queue factor where they have a queue; runs also pull less by the queues at the lifts they lead to ([015](015-lift-queues.md)). Without queues, a 2,000-an-hour chairlift draws as many skiers as 2.5 runs. Skiers mostly take the next lift rather than skiing to the valley floor.
   - **Runs** pull by grade (`GRADE_PULL`): green and blue 1.0, red 0.8, black 0.4, ungraded 0.7.
   - **Short blacks count more like reds.** A black's weight depends on its committed length: how much black you ski from its top before the next way out, which can be an easier run, a lift or a walk. Up to 300 m (`BLACK_SHORT_M`), it counts like a red. From 1,000 m (`BLACK_LONG_M`), it's fully black. In between, it blends from one to the other. The same rule applies to route choice (009).
   - **Steepness** scales a run's pull, using its average gradient over its whole length: under 6% ×0.35, under 10% ×0.7, over 45% ×0.6.

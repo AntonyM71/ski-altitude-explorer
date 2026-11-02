@@ -30,3 +30,4 @@ Each record explains one analytical decision: the problem, what we chose, the ev
 | [012](012-busyness-production-architecture.md) | Run busyness as Python structure plus a JavaScript engine in the browser | Proposed |
 | [013](013-fill-lift-capacity-and-speed.md) | Fill missing lift capacity and speed from seats, names and length | Proposed |
 | [014](014-lifts-by-load.md) | Show lifts by modelled load against their own capacity | Proposed |
+| [015](015-lift-queues.md) | Lift queues: waits where lifts are overfull, and skiers who avoid them | Proposed |

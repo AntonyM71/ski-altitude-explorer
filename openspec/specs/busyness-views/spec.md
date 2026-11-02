@@ -6,11 +6,15 @@ Combine laps and commuting into views by time of day, write them out, and show t
 ## Requirements
 
 ### Requirement: Busyness is a relative index
-Results SHALL be presented as a relative index for ranking runs and lifts within a domain, not as counts of people.
+Results SHALL be presented as a relative index for ranking runs and lifts within a domain, not as counts of people. A lift's wait SHALL be presented as a modelled wait in minutes, an indication rather than a measured queue.
 
 #### Scenario: Comparing two runs
 - **WHEN** one run shows 1,200 an hour and another 600
 - **THEN** the first is read as about twice as busy, not as carrying exactly 1,200 people
+
+#### Scenario: A lift's wait
+- **WHEN** a lift shows a modelled wait of 8 minutes
+- **THEN** it's read as one of the domain's queues, not as a forecast of the wait on a given day
 
 ### Requirement: Day average view
 The model SHALL produce a day average per hour: laps plus each commuter's outbound and return trip, spread over 6 hours (`DAY_HOURS`).
@@ -34,11 +38,15 @@ The model SHALL produce an evening rush per hour: everyone goes home within 1.5 
 - **THEN** it ranks low in the day view and high in the evening view
 
 ### Requirement: Lifts are reported against capacity
-Each lift SHALL be reported as demand ÷ capacity for each view. In the evening, people riding down SHALL count towards it and SHALL be reported separately.
+Each lift SHALL be reported as demand ÷ capacity for each view, with its modelled wait in minutes (busyness-queues). In the evening, people riding down SHALL count towards it and SHALL be reported separately.
 
 #### Scenario: A queue
 - **WHEN** a lift's morning demand is 1.5× its capacity
-- **THEN** it shows 1.5×, meaning a queue
+- **THEN** it shows 1.5× and a modelled wait
+
+#### Scenario: A lift with room
+- **WHEN** a lift's day demand is 0.6× its capacity
+- **THEN** it shows 0.6× and no wait beyond loading
 
 ### Requirement: Results files
 The pipeline SHALL write one structure file per modelled domain (see busyness-pipeline), and the engine SHALL compute every view from it: for each link and lift, its traffic per hour in the day average, morning rush and evening rush, demand ÷ capacity for lifts, and riding down in the evening. Results SHALL NOT be stored per domain; anything that needs them, including tests, runs the engine.

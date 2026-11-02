@@ -11,9 +11,10 @@ The overlay (012) coloured runs and lifts alike: four bands ranked within the do
 ## Decision
 
 - **Lifts are coloured by load against their own capacity**, in four fixed bands: under 50%, 50–80%, 80–100%, and over 100% (`LIFT_LOAD_BANDS` = 0.5, 0.8, 1.0). The bands are the same in every domain.
+  - **Since lift queues ([015](015-lift-queues.md)):** the top two bands show a modelled queue, under 5 minutes or longer, instead of 80–100% and over 100% (`LIFT_LOAD_BANDS` = 0.5, 1.0; `LIFT_WAIT_BANDS_MIN` = 5).
 - **Lifts have a colour scale of their own:** one purple ramp, light to dark (#8a6ad8, #6a44c8, #4a24a0, #2a0d66). Purple isn't used by the runs' bands or the piste grades. The ramp was checked with the dataviz palette validator in ordinal mode. Its lightest step clears 2:1 on every relief tint up to 3,000 m, and 3:1 on the white casing drawn under every lift line, including over bare rock.
 - **The legend shows two scales:** "Runs, for this domain" and "Lifts, of capacity".
-- **Hovering over a lift gives its percentage of capacity**, to the nearest 10%: for example, "modelled at 140% of capacity". A lift just over 100% says so, rather than rounding to 100%. It says nothing about queues.
+- **Hovering over a lift gives its percentage of capacity**, to the nearest 10%: for example, "modelled at 140% of capacity". A lift just over 100% says so, rather than rounding to 100%. It says nothing about queues. Since lift queues (015), a lift with a queue gives its modelled wait in minutes instead.
 - **Nursery lifts** carry no laps in the model, so they're drawn in plain lift ink, with no load.
 - **Runs are unchanged:** still four bands ranked within the domain.
 

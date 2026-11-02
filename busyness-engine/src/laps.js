@@ -21,24 +21,54 @@ export function gradientPull(g, rule) {
 }
 
 /**
- * Each link's pull at the junction it leaves.
+ * Each link's pull at the junction it leaves. A lift with a queue pulls less: its pull is divided by its queue factor,
+ * 1 + its wait beyond loading ÷ QUEUE_TOLERANCE_MIN. A run pulls less by the queues of the lifts it leads to, so
+ * skiers avoid a run that ends at a long queue before they reach it (busyness-queues).
+ * @param {Float64Array} [wait]  per link: a lift's wait beyond loading, in seconds
  * @returns {Float64Array}
  */
-export function pulls(net, P) {
+export function pulls(net, P, wait = null) {
   const { L, outs } = net;
   const pull = new Float64Array(L.length);
+  const queue = (i) => 1 + (wait ? wait[i] : 0) / 60 / P.QUEUE_TOLERANCE_MIN; // a lift's queue factor
   const walks = [];
   L.forEach((l, i) => {
     if (l.k === "download" || l.nur) pull[i] = 0;
-    else if (l.k === "lift") pull[i] = l.cap / P.LIFT_PULL;
+    else if (l.k === "lift") pull[i] = l.cap / P.LIFT_PULL / queue(i);
     else if (l.k === "run") pull[i] = byGrade(l, P.GRADE_PULL, P) * gradientPull(l.grad, P.GRADIENT_PULL);
     else walks.push(i);
   });
-  for (const i of walks) {
-    // A walk is as strong as the best run it leads to.
-    let best = -Infinity;
-    for (const j of outs[L[i].b]) if (L[j].k === "run") best = Math.max(best, pull[j]);
-    pull[i] = best === -Infinity ? 1 : best;
+  const walkPulls = () => {
+    for (const i of walks) {
+      // A walk is as strong as the best run or lift it leads to.
+      let best = -Infinity;
+      for (const j of outs[L[i].b]) if (L[j].k === "run" || L[j].k === "lift") best = Math.max(best, pull[j]);
+      pull[i] = best === -Infinity ? 1 : best;
+    }
+  };
+  walkPulls();
+  if (wait) {
+    // Queues seen ahead: each junction's queue factor is the pull-weighted average over its ways on, a lift's own or
+    // what lies beyond a run or walk. Junctions are numbered highest first, so going from the last to the first sees
+    // every junction below before the ones above it; a climbing link takes 1 for the junction it climbs to.
+    const ahead = new Float64Array(net.N).fill(1);
+    const seen = new Uint8Array(net.N);
+    for (let n = net.N - 1; n >= 0; n--) {
+      let total = 0;
+      let sum = 0;
+      for (const i of outs[n]) {
+        if (pull[i] <= 0) continue;
+        const f = L[i].k === "lift" ? queue(i) : seen[L[i].b] ? ahead[L[i].b] : 1;
+        total += pull[i];
+        sum += pull[i] * f;
+      }
+      if (total > 0) ahead[n] = sum / total;
+      seen[n] = 1;
+    }
+    L.forEach((l, i) => {
+      if (l.k === "run") pull[i] /= ahead[l.b];
+    });
+    walkPulls();
   }
   return pull;
 }

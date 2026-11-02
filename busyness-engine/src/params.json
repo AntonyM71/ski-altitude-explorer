@@ -27,5 +27,9 @@
   "PEAK_HOURS": 1.5,
   "RAMP": 0.4,
   "BANDS": [0.5, 0.8, 0.95],
-  "LIFT_LOAD_BANDS": [0.5, 0.8, 1.0]
+  "LIFT_LOAD_BANDS": [0.5, 1.0],
+  "LIFT_WAIT_BANDS_MIN": [5],
+  "_queues": "Lift queues (015). Unsourced guesses (known issue 8): how many minutes of queue halve a lift's pull, and the most iterations.",
+  "QUEUE_TOLERANCE_MIN": 10,
+  "QUEUE_PASSES": 30
 }

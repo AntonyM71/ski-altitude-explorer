@@ -100,3 +100,20 @@ test("too many riding down: the excess skis home", () => {
   assert.ok(capped.evening[2] < once.evening[2] && capped.evening[1] > once.evening[1], "the excess skis home");
   assert.ok(capped.passes > 1);
 });
+
+test("a queue on the way: a lift's wait adds to its route time, so most commuters take the slower route", () => {
+  // From junction 0 to 3: via lift A (junction 1) or via lift B (junction 2), B's route 10 minutes slower.
+  const lift = (a, b, rt, key) => ({ a, b, k: "lift", len: 1000, rt, cap: 2000, lift: key });
+  const s = { z: [1000, 1000, 1000, 2000], links: [{ a: 0, b: 1, k: "walk", len: 0, rt: 30 }, lift(1, 3, 300, 0),
+    { a: 0, b: 2, k: "walk", len: 0, rt: 30 }, lift(2, 3, 900, 1)],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
+  const net = network(s);
+  const feel = P.ABILITIES.intermediate.feel;
+  const none = routeTimes(net, P, { feel, laps: new Float64Array(4) });
+  assert.equal(routes(net, [0], none).prev[3], 1, "without a queue, lift A is quicker");
+  const wait = new Float64Array(4);
+  wait[1] = 900; // a 15-minute queue at A
+  const queued = routeTimes(net, P, { feel, laps: new Float64Array(4), wait });
+  assert.equal(queued[1], 300 + 900);
+  assert.equal(routes(net, [0], queued).prev[3], 3, "with it, lift B is quicker");
+});
