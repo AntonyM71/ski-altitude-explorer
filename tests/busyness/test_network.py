@@ -85,3 +85,59 @@ def test_committed_length_of_a_black():
     assert abs(long.committed - 1200) < 5
     first = max(links_of(net, "short"), key=lambda e: net.z[e.a])
     assert abs(first.committed - 250) < 5
+
+
+def station_walks_of(net):
+    return [(e.a, e.b) for e in net.links if e.kind == "walk" and e.len > 0]
+
+
+def bottom(net, lid):
+    (e,) = links_of(net, lid, "lift")
+    return e.a
+
+
+def top(net, lid):
+    (e,) = links_of(net, lid, "lift")
+    return e.b
+
+
+def test_two_lift_bottoms_a_short_walk_apart():
+    net = build([lift("gondola", (0, 0, 1795), (0, 1500, 2300)), lift("funicular", (184, 0, 1810), (184, 1500, 2600))])
+    a, b = bottom(net, "gondola"), bottom(net, "funicular")
+    assert sorted(station_walks_of(net)) == sorted([(a, b), (b, a)])
+    walk = next(e for e in net.links if e.kind == "walk" and e.a == a)
+    assert 180 <= walk.t <= 190  # about 3 minutes at 1 m/s
+
+
+def test_a_lift_top_near_another_lift_bottom_walks_one_way():
+    net = build([lift("town", (0, -800, 1800), (0, 0, 1856)), lift("next", (161, 0, 1850), (161, 1200, 2300))])
+    assert station_walks_of(net) == [(top(net, "town"), bottom(net, "next"))]
+
+
+def test_no_walk_where_a_run_already_joins_them():
+    net = build([lift("one", (0, -1000, 1800), (0, 0, 2315)), lift("two", (200, 0, 2295), (200, 1200, 2700)),
+                 run("r", (0, 0, 2315), (200, 0, 2295))])
+    assert station_walks_of(net) == []
+
+
+def test_lift_bottoms_too_far_apart_are_not_joined():
+    net = build([lift("a", (0, 0, 1800), (0, 1200, 2300)), lift("b", (300, 0, 1800), (300, 1200, 2300))])
+    assert station_walks_of(net) == []
+
+
+def test_a_walk_to_a_nearby_lift_pulls_like_that_lift():
+    from busyness import params as P
+    from busyness.sectors import pull
+
+    net = build([lift("gondola", (0, 0, 1795), (0, 1500, 2300), cap=2500),
+                 lift("funicular", (184, 0, 1810), (184, 1500, 2600), cap=1500)])
+    a = bottom(net, "gondola")
+    (walk,) = [e for e in net.out_links[a] if e.kind == "walk"]
+    (up,) = [e for e in net.out_links[a] if e.kind == "lift"]
+    beh = P.behaviour()
+    assert pull(net, up, beh) == 3.125 and pull(net, walk, beh) == 1.875
+
+
+def test_a_short_lift_does_not_walk_back_to_its_own_bottom():
+    net = build([lift("carpet", (0, 0, 1500), (0, 200, 1520), type="t-bar")])
+    assert station_walks_of(net) == []

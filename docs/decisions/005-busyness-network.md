@@ -20,7 +20,13 @@ OpenStreetMap draws runs and lifts as separate lines. They rarely share points a
 - **Direction.** Runs point downhill and lifts uphill, using the altitude at each end.
 - **Lifts join only at their ends,** so a run passing under a lift doesn't connect to it.
 - **Lift stations are big.** A lift's end joins any run passing within 100 m (`LIFT_STATION_M`).
-- **Walking links.** A lift's top links to every run starting within 150 m (`LIFT_TOP_M`). Every run ending within 100 m (`LIFT_BOTTOM_M`) links to its bottom. Each walking link takes 30 s.
+- **Walking links.** A lift's top links to every run starting within 150 m (`LIFT_TOP_M`). Every run ending within 100 m (`LIFT_BOTTOM_M`) links to its bottom. Each of these walking links takes 30 s.
+- **Walks between lift stations** (OpenSpec change `lift-bottom-walks`). A lift's top or bottom also links to another lift's bottom within 250 m (`LIFT_WALK_M`) and 30 m of height (`LIFT_WALK_RISE_M`), but only where runs and walks don't already lead there. These walks take their distance ÷ 1 m/s (`WALK_SPEED`).
+  - **Why:** at La Daille, the gondola and the Funival start 184 m apart, but nothing joined them, so everyone heading up was sent to the gondola.
+  - **Why only gaps:** where a run already joins two lifts, as the run from Roc 1's top to Roc 2's bottom does, a walk beside it would draw skiers off the run.
+  - **Never to a lift's top:** you'd walk from Tommeuses' bottom to Mont Blanc's, but not up to the top of Daille.
+  - **Pull:** a walk is as attractive as the best run or lift it leads to.
+  - **Effect:** across the four test domains, it added 40 walks, mostly at village lift hubs (Soldeu, El Tarter, Pas de la Casa, Les Menuires, Brévières). Val d'Isère's sectors regrouped, because of the walk pull rule rather than the new walks; the project owner accepted the new grouping.
 - **Riding down.** Gondolas, cable cars, funiculars and mixed lifts also get a downhill link, ride time plus queue, that can only be used on the way home in the evening (009, 010). Lapping skiers and morning trips never use it, and it carries at most the lift's capacity. Observed: at the end of the day a share of people ride Prorel, Solaise or the Olympique down rather than ski hard, low or icy runs home.
 - **Nursery areas are links only.** Nursery lifts are magic carpets and rope tows, plus drag lifts shorter than 300 m. Nursery slopes are green runs under 400 m long that end within 100 m of a nursery lift's bottom. They stay in the network so commuters and people going home can pass through them. But they're left to ski school: lapping skiers ignore them (006), and they don't count as village lifts or morning departures (008).
 

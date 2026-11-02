@@ -17,7 +17,7 @@ MIN_KM = 30  # piste km a top-level domain needs...
 MIN_LIFTS = 5  # ...and lifts that aren't nursery lifts
 
 # The structure format. Bump when structure code changes what it writes, so every domain is rebuilt.
-MODEL_VERSION = 3
+MODEL_VERSION = 4
 
 # Network (005)
 SNAP_M = 40  # line ends this close join into one junction
@@ -25,6 +25,9 @@ LIFT_STATION_M = 100  # a lift's end joins runs passing this close
 LIFT_TOP_M = 150  # a lift's top links to runs starting this close
 LIFT_BOTTOM_M = 100  # runs ending this close link to a lift's bottom
 WALK_S = 30  # time for a walking link
+LIFT_WALK_M = 250  # a lift's top or bottom walks to another lift's bottom this close...
+LIFT_WALK_RISE_M = 30  # ...and within this much height, where no run or walk already leads there
+WALK_SPEED = 1.0  # m/s for those longer walks, in ski boots with skis (at least WALK_S)
 DOWNLOAD_LIFTS = {"gondola", "cable_car", "funicular", "mixed_lift"}  # can be ridden down in the evening
 
 # Capacity and time (004, 009)

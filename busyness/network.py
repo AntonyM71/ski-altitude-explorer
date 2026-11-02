@@ -156,6 +156,44 @@ def _piece_len(pts) -> float:
     return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:], strict=False))
 
 
+def station_walks(net: Network, walks: list[Link]) -> list[Link]:
+    """Walks from a lift's top or bottom to another lift's bottom a short walk away, where runs and walks don't
+    already lead there. Never to a lift's top: a walk would cut a lap short where a run already does the job."""
+    adj = defaultdict(list)
+    for e in [*net.links, *walks]:
+        if e.kind in ("run", "walk"):
+            adj[e.a].append(e.b)
+
+    def reach(n):
+        seen, todo = {n}, [n]
+        while todo:
+            for m in adj[todo.pop()]:
+                if m not in seen:
+                    seen.add(m)
+                    todo.append(m)
+        return seen
+
+    at = defaultdict(set)  # station -> the lifts that start or end there
+    bottoms = defaultdict(set)  # lift bottom -> the lifts that start there
+    for e in net.all_lifts:
+        at[e.a].add(e.fi)
+        at[e.b].add(e.fi)
+        bottoms[e.a].add(e.fi)
+    out, reached = [], {}
+    for s in sorted(at):
+        for b in sorted(bottoms):
+            if b == s or bottoms[b] <= at[s]:  # only to another lift's bottom, never back onto its own
+                continue
+            if net.dist(s, b) > P.LIFT_WALK_M or abs(net.z[b] - net.z[s]) > P.LIFT_WALK_RISE_M:
+                continue
+            if s not in reached:
+                reached[s] = reach(s)
+            if b not in reached[s]:
+                t = max(P.WALK_S, net.dist(s, b) / P.WALK_SPEED)
+                out.append(Link(s, b, "walk", None, net.dist(s, b), t, t))
+    return out
+
+
 def build(feats: list[Feature]) -> Network:
     """The network for a domain's features: marks nursery areas, projects to metres, joins and cuts lines, adds walks
     and rides down, and works out each black's committed length."""
@@ -250,6 +288,7 @@ def build(feats: list[Feature]) -> Network:
         for s in finishes:
             if s != lift.a and net.dist(lift.a, s) <= P.LIFT_BOTTOM_M and -30 <= net.z[s] - net.z[lift.a] <= 60:
                 walks.append(Link(s, lift.a, "walk", None, 0, P.WALK_S, P.WALK_S))
+    walks += station_walks(net, walks)
     # Enclosed lifts can be ridden down on the way home in the evening (never for laps or in the morning).
     downs = [Link(lift.b, lift.a, "download", lift.fi, lift.len, lift.t, lift.route_t)
              for lift in net.all_lifts if feats[lift.fi].type in P.DOWNLOAD_LIFTS]
