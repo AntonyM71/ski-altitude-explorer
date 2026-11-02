@@ -93,7 +93,7 @@ uv run python -m http.server    # then open http://localhost:8000/
 | `prototypes/busyness_review.html` | A review map for checking the busyness model: open `?d=<domain id>` on a local server from the repository root. |
 | `openspec/` | Specifications ([OpenSpec](https://openspec.dev/)): what the busyness model must do, and changes to it. |
 | `docs/decisions/` | Decision records: why linked domains are joined, how piste areas are measured, and how the busyness model works. |
-| `docs/observations.md`, `docs/known-issues.md` | Observations from skiing that the busyness model is checked against, and open issues and ideas. |
+| `docs/observations.md`, `docs/known-issues.md`, `docs/ideas-and-fixes.md` | Observations from skiing that the busyness model is checked against; open problems in the model, by priority; and ideas, map-data fixes and linked-domain issues. |
 
 `data/` is git-ignored. The data is never committed; the workflow builds it fresh on every run.
 
