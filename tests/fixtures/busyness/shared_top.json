@@ -4,8 +4,8 @@
   "id": "shared_top",
   "name": "shared_top"
  },
- "model_version": 2,
- "fingerprint": "edf7bc51951eda87",
+ "model_version": 3,
+ "fingerprint": "fe9508697c5ce6d7",
  "places": {
   "source": "none",
   "release": null
@@ -62,7 +62,8 @@
    "name": "La",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 0,
    "day_sectors": {
@@ -74,7 +75,8 @@
    "name": "Lb",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 0,
    "day_sectors": {

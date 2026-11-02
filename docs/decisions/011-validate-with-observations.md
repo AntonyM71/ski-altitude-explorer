@@ -16,22 +16,22 @@ The model also checks itself: a run stops with an error, rather than writing res
 
 ## Observations and how the model compares
 
-As of the production pipeline and engine (busyness-production-architecture): structure files built by the `busyness` package, with villages from Overture Maps places and exact sectors, and the JavaScript engine, which counts lapping skiers from every lift where several share a top station (the prototype kept only one). Earlier refinements are as described in 005–010: places sized by their own lifts, nursery areas as links only, commuters setting off from their own part of the village, evenings that mirror the morning, commuting that rises with how much of the domain lies elsewhere, end-of-day conditions, skied-out runs, faster easy runs for able skiers, riding down, runs joined where they cross, and short blacks counting more like reds except in end-of-day conditions.
+As of lift estimates (013: missing capacities and speeds from seats, names and cable car length) on the production pipeline and engine (busyness-production-architecture): structure files built by the `busyness` package, with villages from Overture Maps places and exact sectors, and the JavaScript engine, which counts lapping skiers from every lift where several share a top station (the prototype kept only one). Earlier refinements are as described in 005–010: places sized by their own lifts, nursery areas as links only, commuters setting off from their own part of the village, evenings that mirror the morning, commuting that rises with how much of the domain lies elsewhere, end-of-day conditions, skied-out runs, faster easy runs for able skiers, riding down, runs joined where they cross, and short blacks counting more like reds except in end-of-day conditions.
 
 | Domain | Observation | Model |
 |---|---|---|
-| Les Trois Vallées | Plein Sud is usually full in the mornings, often with a queue | ~ 0.65× in the morning (38th of 127 lifts). **Open** (known issues 4, 8). |
-| Les Trois Vallées | The Funitel 3 Vallées is often full at the start of the day, partly with commuters; reached by Plein Sud or Pionniers | ✓ 1.6× in the morning (6th). Pionniers 1.0×. |
-| Les Trois Vallées | Lac de la Chambre is busy | ✓ 5th and 6th of 318 by day |
-| Les Trois Vallées | Doubt about Ours's ranking against Sittelle | Sittelle 2nd, Ours 12th by day. Unconfirmed. |
-| Tignes–Val d'Isère | The Face de Bellevarde is often less chewed up than Joseray; Joseray may be moguled by evening | ✓ In the evening Face 1,125, Joseray 1,656 an hour. By day the Face is busier (906 against 658), since short blacks count more like reds (006) and more skiers lap Bellevarde. |
-| Tignes–Val d'Isère | Henri, Lac and Combe are busy | ✓ Henri 3rd, Combe 24th, Lac 36th of 151 by day: all in the busiest quarter (Combe and Lac were 11th and 21st before the shared-top fix) |
-| Tignes–Val d'Isère | Edelweiss and Combe carry Tignes → Val d'Isère traffic | ✓ Edelweiss 5th by day, mostly commuters |
-| Tignes–Val d'Isère | Piste M is busy at the end of the day; quieter during the day | ✗ 46th of 151 in the evening (about 670 an hour). **Open** (known issue 1). |
-| Tignes–Val d'Isère | Skiers avoid flat runs such as the Traversée du Laisinant | ✗ Avoided by day (48th), but 4th in the evening (about 1,760 an hour), with Piste L 3rd, as the only way home from the Laisinant side without a bus. **Open** (known issue 1). |
-| Tignes–Val d'Isère | Santons is a busy home run at the end of the day | ✗ Santons haut 63rd and Santons 70th in the evening. **Open** (known issue 2). |
-| Tignes–Val d'Isère | Staying in Tignes: home down Johan Clarey | ✓ 23rd in the evening |
-| Tignes–Val d'Isère | People ride Solaise, the Olympique and Tovière down at the end of the day | ✓ Solaise 606, Olympique 1,866 and Tovière 1,761 an hour riding down. ~ Tovière at 80% of capacity is probably still too much (known issue 10). |
+| Les Trois Vallées | Plein Sud is usually full in the mornings, often with a queue | ~ 0.66× in the morning (36th of 127 lifts). **Open** (known issues 4, 8). |
+| Les Trois Vallées | The Funitel 3 Vallées is often full at the start of the day, partly with commuters; reached by Plein Sud or Pionniers | ✓ 1.7× in the morning (6th). Pionniers 1.0×. |
+| Les Trois Vallées | Lac de la Chambre is busy | ✓ 4th and 6th of 318 by day |
+| Les Trois Vallées | Doubt about Ours's ranking against Sittelle | Sittelle 2nd, Ours 11th by day. Unconfirmed. |
+| Tignes–Val d'Isère | The Face de Bellevarde is often less chewed up than Joseray; Joseray may be moguled by evening | ✓ In the evening Face 1,157, Joseray 1,670 an hour. By day the Face is busier (1,013 against 690), since short blacks count more like reds (006) and more skiers lap Bellevarde. |
+| Tignes–Val d'Isère | Henri, Lac and Combe are busy | ✓ Henri 3rd, Combe 22nd, Lac 34th of 151 by day: all in the busiest quarter (Combe and Lac were 11th and 21st before the shared-top fix) |
+| Tignes–Val d'Isère | Edelweiss and Combe carry Tignes → Val d'Isère traffic | ✓ Edelweiss 8th by day, about half commuters (49%; 5th and just over half before lift estimates, which raised several chairlifts' capacity and so local lapping) |
+| Tignes–Val d'Isère | Piste M is busy at the end of the day; quieter during the day | ✗ 46th of 151 in the evening (about 710 an hour). **Open** (known issue 1). |
+| Tignes–Val d'Isère | Skiers avoid flat runs such as the Traversée du Laisinant | ✗ Avoided by day (49th), but 4th in the evening (about 1,810 an hour), with Piste L 3rd, as the only way home from the Laisinant side without a bus. **Open** (known issue 1). |
+| Tignes–Val d'Isère | Santons is a busy home run at the end of the day | ✗ Santons haut 64th and Santons 70th in the evening. **Open** (known issue 2). |
+| Tignes–Val d'Isère | Staying in Tignes: home down Johan Clarey | ✓ 22nd in the evening |
+| Tignes–Val d'Isère | People ride Solaise, the Olympique and Tovière down at the end of the day | ✓ Solaise 643, Olympique 2,000 and Tovière 1,914 an hour riding down. ~ Tovière at 80% of capacity is probably still too much (known issue 10). |
 | Tignes–Val d'Isère | Le Fornet's cable car is adequate for its village | ✓ 0.37× in the morning |
 | Serre Chevalier | Pelvoux is busy, carrying the Prorel population into the main bowl | ✓ 4th of 88 by day (the busiest before the shared-top fix) |
 | Serre Chevalier | Traverse is busy | ✓ 3rd of 88 by day |
@@ -39,10 +39,10 @@ As of the production pipeline and engine (busyness-production-architecture): str
 | Serre Chevalier | Prorel: some people ride it down, never full | ✓ 326 and 409 an hour riding down (14% and 17%) |
 | Serre Chevalier | Going home to Chantemerle, people mostly ride Ratier down or ski Briance; Luc Alphand should be quieter than Briance | ✗ Luc Alphand 10th in the evening (1,233 an hour), Briance 470, Ratier 664 riding down. **Open** (known issue 3). |
 | Serre Chevalier | Pylônes is fine for confident intermediates: greens cross it, so you can bail out at any time | ✓ crossings by greens joined (005); 712 m at most before a way out, so by day it counts partly as a red: 346 an hour. |
-| Grandvalira | The Soldeu gondola is busy in the morning, but not with 20-minute queues | ✓ 0.85× (12th of 45 lifts) |
+| Grandvalira | The Soldeu gondola is busy in the morning, but not with 20-minute queues | ✓ 0.76× (15th of 45 lifts) |
 | Grandvalira | Grau Roig is a thoroughfare, not a village | ✓ excluded (10 buildings in Overture's data) |
 | Grandvalira | Gall de Bosc is busy | Out by design: a beginner area, left to ski school (005). |
-| Grandvalira | Pista Llarga seemed unusually busy | ~ fixed by wider lift joins (005); now 3rd by day at about 1,400 an hour, still well under its old 2,200. |
+| Grandvalira | Pista Llarga seemed unusually busy | ~ eased by wider lift joins (005), but 1st by day again at about 1,950 an hour (3rd at 1,400 before lift estimates, 013): the six-seat detachables above it now carry 3,000 an hour from their seats, not the flat 2,000. Still under its old 2,200. **Open.** |
 
 ## Consequences
 

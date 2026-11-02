@@ -11,6 +11,7 @@ from pathlib import Path
 import build_stats as bs
 
 from . import params as P
+from .lifts import estimate
 
 
 @dataclass
@@ -32,8 +33,10 @@ class Feature:
     grade: int = 4  # runs: 0 green .. 3 black, 4 ungraded
     grad: float = 0.0  # runs: average gradient, end to end
     type: str = ""  # lifts: OpenSkiMap liftType
-    cap: float = 0.0  # lifts: capacity per hour (recorded or typical)
-    cap_known: bool = False
+    cap: float = 0.0  # lifts: capacity per hour, recorded or estimated (lifts.estimate)
+    cap_src: str = "type"  # lifts: where cap came from: "recorded", "seats", "name" or "type"
+    speed: float = 0.0  # lifts: m/s, recorded (length / ride time) or estimated
+    speed_src: str = "type"
     dur: float | None = None  # lifts: recorded ride time, seconds
     place: str | None = None  # lifts: locality or region, for naming sectors
     nursery: bool = False
@@ -63,13 +66,13 @@ def _run(p: dict, ln) -> Feature:
 
 
 def _lift(p: dict, ln) -> Feature:
-    cap = p.get("capacity")
-    known = bool(cap and P.CAP_RANGE[0] <= cap <= P.CAP_RANGE[1])
+    lons, lats = [c[0] for c in ln], [c[1] for c in ln]
+    cap, cap_src, speed, speed_src = estimate(p, sum(bs.geod.inv(lons[:-1], lats[:-1], lons[1:], lats[1:])[2]))
     dur = p.get("duration")
     place = next((pl["localized"]["en"]["locality"] or pl["localized"]["en"]["region"] for pl in p["places"]
                   if pl["localized"]["en"]["locality"] or pl["localized"]["en"]["region"]), None)
     return Feature("lift", bs.short_id(p["id"]), p["name"] or "(unnamed lift)", [tuple(c[:3]) for c in ln],
-                   type=p["liftType"], cap=cap if known else P.CAP_BY_TYPE.get(p["liftType"], 1000), cap_known=known,
+                   type=p["liftType"], cap=cap, cap_src=cap_src, speed=speed, speed_src=speed_src,
                    dur=dur if dur and P.DURATION_RANGE[0] <= dur <= P.DURATION_RANGE[1] else None, place=place)
 
 

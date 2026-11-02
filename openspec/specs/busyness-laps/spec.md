@@ -6,12 +6,12 @@ Estimate where skiers who stay in their own area go: from each lift's top, down 
 ## Requirements
 
 ### Requirement: Every lift runs at capacity
-Each lift SHALL be assumed to carry its recorded capacity. A missing capacity, or one under 100 or over 6,000 an hour, SHALL be replaced by a typical value for the lift type, and the lift SHALL be flagged as using a typical value.
+Each lift SHALL be assumed to carry its capacity: its recorded capacity or, where that's missing or implausible, the estimate from busyness-lift-estimates. The lift SHALL record which it is.
 
 #### Scenario: A chairlift with no recorded capacity
-- **WHEN** a chairlift has no capacity in the data
-- **THEN** it carries 2,000 an hour
-- **AND** it is flagged as a typical value
+- **WHEN** a chairlift has no capacity in the data but records its seats
+- **THEN** it carries the estimate for its seats
+- **AND** its capacity source is `seats`
 
 ### Requirement: Lapping skiers leave each lift's top
 Each lift's top SHALL send skiers down at its capacity, less its sector's commuting share (see busyness-commuting). Nursery lifts SHALL send none. Where several lifts share a top station, the skiers they send SHALL add up.

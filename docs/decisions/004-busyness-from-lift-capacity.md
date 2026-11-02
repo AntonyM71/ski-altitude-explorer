@@ -21,9 +21,9 @@ Lift type is always filled in. Ride time is filled in for 18% overall, and seats
 
 Busyness is modelled from **uplift**: every lift is assumed to run at its full capacity, and the model works out where those skiers go. The output is a **relative index**, which ranks runs and lifts against each other within a domain. It isn't a count of people.
 
-- **Missing capacity** is filled with a typical value for the lift type, from the medians in the data. For example: chairlift 2,000 an hour, gondola 2,200, T-bar 1,000, platter or drag 720, magic carpet 900.
+- **Missing capacity** is filled from the lift's seats where it has them (chairlifts, gondolas and cable cars; see [013](013-fill-lift-capacity-and-speed.md)), and otherwise with a typical value for the lift type, from the medians in the data. For example: chairlift 2,000 an hour, gondola 2,200, T-bar 1,000, platter or drag 720, magic carpet 900.
 - **Implausible capacities** (under 100 or over 6,000 an hour) are treated as missing.
-- **Flagging:** lifts using a typical value are marked, so busy results on guessed capacities can be discounted.
+- **Flagging:** each lift records where its capacity came from (recorded, seats, name or type; [013](013-fill-lift-capacity-and-speed.md)), so busy results on guessed capacities can be discounted.
 - **Skiers in a sector** are estimated as its total lift capacity ÷ 3.5 rides per skier per hour (`LIFTS_PER_HOUR`).
 
 ## Alternatives considered

@@ -26,7 +26,7 @@ def fingerprint(feats: list[Feature], places: list[Place] | None) -> str:
     h.update(f"{P.MODEL_VERSION}|{P.OVERTURE_RELEASE}|".encode())
     h.update(P.ENGINE_PARAMS.read_bytes())
     for f in feats:
-        h.update(json.dumps([f.kind, f.id, f.name, f.grade, f.type, f.cap, f.cap_known, f.dur,
+        h.update(json.dumps([f.kind, f.id, f.name, f.grade, f.type, f.cap, f.cap_src, f.speed, f.speed_src, f.dur,
                              [[round(c, 6) for c in pt] for pt in f.ll]], ensure_ascii=False).encode())
     h.update(json.dumps([asdict(p) for p in places] if places is not None else None, ensure_ascii=False).encode())
     return h.hexdigest()[:16]
@@ -63,7 +63,8 @@ def assemble(domain: Domain, net: Network, sectors: Sectors, villages: list[Vill
         "z": [round(net.z[n], 3) for n in net.order],  # to the millimetre: whether a link climbs depends on it
         "links": links,
         "lifts": {str(fi): {"id": net.feats[fi].id, "name": net.feats[fi].name, "type": net.feats[fi].type,
-                            "cap": net.feats[fi].cap, "cap_known": net.feats[fi].cap_known,
+                            "cap": net.feats[fi].cap, "cap_src": net.feats[fi].cap_src,
+                            "speed_src": net.feats[fi].speed_src,
                             "nursery": net.feats[fi].nursery, "sector": sectors.sector_of[fi],
                             **({"day_sectors": {str(k): round(v, 4) for k, v in sectors.day_sectors[fi].items()}}
                                if fi in sectors.day_sectors else {})}

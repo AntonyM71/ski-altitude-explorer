@@ -234,7 +234,7 @@ def build(feats: list[Feature]) -> Network:
             else:
                 if pts[0][2] > pts[-1][2]:
                     a, b = b, a  # uphill
-                t = (f.dur or length / P.LIFT_SPEED.get(f.type, P.DEFAULT_LIFT_SPEED)) + P.WAIT_S
+                t = (f.dur or length / f.speed) + P.WAIT_S
                 net.links.append(Link(a, b, "lift", fi, length, t, t))
     net.z = {n: statistics.mean(p[2] for p in v) for n, v in node_pts.items()}
     net.xy = {n: (statistics.mean(p[0] for p in v), statistics.mean(p[1] for p in v)) for n, v in node_pts.items()}
