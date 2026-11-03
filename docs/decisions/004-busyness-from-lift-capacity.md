@@ -2,6 +2,8 @@
 
 **Status:** Proposed (issue #3, prototype)
 
+> **Since [017](017-day-simulation.md):** lifts no longer run at capacity by assumption. They carry the skiers who reach them, up to capacity, in a simulated day. The domain's skiers are still lift capacity ÷ 3.5, now visibly too many (see 016).
+
 **Code:** [busyness/](../../busyness/) (structure: network, villages, sectors) and [busyness-engine/](../../busyness-engine/) (behaviour: laps, commuting, views); see [012](012-busyness-production-architecture.md)
 
 ## Context

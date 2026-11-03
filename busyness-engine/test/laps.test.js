@@ -1,77 +1,102 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { network } from "../src/graph.js";
-import { byGrade, pulls, lapSources, laps, exchange, gradientPull } from "../src/laps.js";
+import { byGrade, pulls, exchange, gradientPull } from "../src/laps.js";
 import { P, fixture } from "./helpers.js";
 
 const lift = (a, b, cap, key) => ({ a, b, k: "lift", len: 1000, rt: 400, cap, lift: key });
 const run = (a, b, g = 1, grad = 0.2, extra = {}) => ({ a, b, k: "run", len: 500, rt: 80, g, grad, ...extra });
 
-test("a lift in a sector with 40% commuting sends 1,200 an hour from a 2,000 lift", () => {
-  const s = { z: [2000, 1500], links: [lift(1, 0, 2000, 0), run(0, 1)], lifts: { 0: { sector: 0 } },
-              sectors: [{ share: 0.4 }] };
-  assert.equal(lapSources(network(s))[0], 1200);
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+const one = { 0: { sector: 0 }, 1: { sector: 0 }, 2: { sector: 0 } };
+
+// Junction 0 offers a 2,000 chairlift (to 3) and two blue runs, to junctions 1 and 2, each the bottom of another
+// 2,000 chairlift.
+const bigLiftBesideTwoRuns = () => network({ z: [2000, 1500, 1500, 2500],
+  links: [lift(0, 3, 2000, 0), run(0, 1), run(0, 2), lift(1, 3, 2000, 1), lift(2, 3, 2000, 2), run(3, 0)],
+  lifts: one, sectors: [{ share: 0 }] });
+
+test("a big lift beside two runs to equal lifts: each run pulls as much as the lift at hand", () => {
+  const pull = pulls(bigLiftBesideTwoRuns(), P);
+  assert.equal(pull[0], 2.5);
+  assert.ok(near(pull[1], 2.5) && near(pull[2], 2.5), `runs pull ${pull[1]}, ${pull[2]}`);
 });
 
-test("two lifts sharing a top station: their riders add up", () => {
-  const s = fixture("shared_top");
-  const net = network(s);
-  const tops = net.lifts.map((i) => s.links[i].b);
-  assert.equal(new Set(tops).size, 1, "the fixture's two lifts share a top");
-  assert.equal(lapSources(net)[tops[0]], 4000); // one sector: no commuting
-  const { liftLaps } = laps(net, P);
-  const total = [...liftLaps.values()].reduce((a, b) => a + b);
-  assert.ok(Math.abs(total - 4000) < 1, `all 4,000 reach a lift, got ${total}`);
+test("the lift at hand with a 10-minute queue pulls 1.25 and takes 1.25 / 6.25", () => {
+  const wait = new Float64Array(6);
+  wait[0] = 600;
+  const pull = pulls(bigLiftBesideTwoRuns(), P, wait);
+  assert.equal(pull[0], 1.25);
+  assert.ok(near(pull[0] / (pull[0] + pull[1] + pull[2]), 1.25 / 6.25));
 });
 
-test("a 2,000 lift beside two ordinary blue runs takes 2.5 / 4.5 of the skiers", () => {
-  const s = { z: [2000, 1900, 1500, 1400],
-    links: [run(0, 1), lift(1, 0, 2000, 0), run(1, 2), run(1, 3), lift(2, 0, 1000, 1), lift(3, 0, 1000, 2)],
-    lifts: { 0: { sector: 0 }, 1: { sector: 0 }, 2: { sector: 0 } }, sectors: [{ share: 0 }] };
-  const net = network(s);
-  const src = new Float64Array(4);
-  src[1] = 4500;
+test("a run that ends at a 10-minute queue pulls half as much: 1.25", () => {
+  const wait = new Float64Array(6);
+  wait[3] = 600;
+  const pull = pulls(bigLiftBesideTwoRuns(), P, wait);
+  assert.ok(near(pull[1], 1.25), `run pulls ${pull[1]}`);
+  assert.ok(near(pull[2], 2.5));
+});
+
+// Junction 0 offers a 1,600 chairlift and a run to junction 1, the bottom of a 4,000 chairlift.
+const biggerLiftAhead = (g, extra = {}) => network({ z: [2000, 1950, 2600],
+  links: [lift(0, 2, 1600, 0), run(0, 1, g, 0.2, extra), lift(1, 2, 4000, 1), run(2, 0)],
+  lifts: one, sectors: [{ share: 0 }] });
+
+test("a bigger lift a short run away: the blue run pulls 5.0 against the lift at hand's 2.0", () => {
+  const pull = pulls(biggerLiftAhead(1), P);
+  assert.equal(pull[0], 2);
+  assert.ok(near(pull[1], 5));
+  assert.ok(near(pull[1] / (pull[0] + pull[1]), 5 / 7));
+});
+
+test("a long black on the only way to the big lift pulls 2.0, as much as the lift at hand", () => {
+  const pull = pulls(biggerLiftAhead(3, { cm: 1200 }), P);
+  assert.ok(near(pull[1], 2), `black pulls ${pull[1]}`);
+});
+
+test("a black beside an easier way doesn't lower the pull of the run leading to them", () => {
+  // A blue from 0 to 1; from 1, a long black and a blue both lead to 2, a 2,000 lift's bottom.
+  const net = network({ z: [2400, 2200, 1800, 2600],
+    links: [run(0, 1), run(1, 2, 3, 0.4, { cm: 1200 }), run(1, 2), lift(2, 3, 2000, 0), run(3, 0)],
+    lifts: one, sectors: [{ share: 0 }] });
   const pull = pulls(net, P);
-  assert.equal(pull[1], 2.5);
-  const from1 = [1, 2, 3].map((i) => (4500 * pull[i]) / (pull[1] + pull[2] + pull[3]));
-  assert.deepEqual(from1.map(Math.round), [2500, 1000, 1000]);
+  assert.ok(near(pull[0], 2.5), `the blue above pulls ${pull[0]}`);
+  assert.ok(near(pull[1], 1) && near(pull[2], 2.5), "at the fork, the black still pulls less than the blue");
 });
 
-test("a lift with a 10-minute queue pulls half as much: two equal lifts split a third and two thirds", () => {
-  const s = { z: [2000, 1900, 1500, 1400],
-    links: [run(0, 1), lift(1, 0, 2000, 0), lift(2, 0, 2000, 1), lift(3, 0, 2000, 2), run(1, 2), run(1, 3)],
-    lifts: { 0: { sector: 0 }, 1: { sector: 0 }, 2: { sector: 0 } }, sectors: [{ share: 0 }] };
-  const net = network(s);
-  const wait = new Float64Array(s.links.length);
-  wait[2] = 600; // ten minutes beyond loading
-  const pull = pulls(net, P, wait);
-  assert.equal(pull[2], 1.25);
-  assert.equal(pull[3], 2.5);
-  assert.ok(Math.abs(pull[2] / (pull[2] + pull[3]) - 1 / 3) < 1e-12);
-  // The busyness-laps scenario: the queued lift beside two blue runs takes 1.25 / 3.25.
-  assert.ok(Math.abs(pull[2] / (pull[2] + 1 + 1) - 1.25 / 3.25) < 1e-12);
+test("a run that leads to no lift takes the domain's typical lift pull", () => {
+  const net = network({ z: [2000, 1500, 2500, 1000],
+    links: [lift(1, 2, 2000, 0), run(2, 1), run(1, 3)], lifts: one, sectors: [{ share: 0 }] });
+  assert.ok(near(pulls(net, P)[2], 2.5));
 });
 
-test("a walk to a nearby lift pulls like that lift: a gondola's bottom splits 3.125 to 1.875", () => {
-  const s = { z: [2300, 1795, 2600, 1810],
-    links: [lift(1, 0, 2500, 0), lift(3, 2, 1500, 1), { a: 1, b: 3, k: "walk", len: 184, rt: 184 }],
-    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
-  const pull = pulls(network(s), P);
+test("a nursery slope beside a blue to an equal lift takes 1 / 21 of the skiers", () => {
+  const net = network({ z: [2000, 1500, 1500, 2500],
+    links: [run(0, 1, 0, 0.2, { nur: 1 }), run(0, 2), lift(1, 3, 2000, 0), lift(2, 3, 2000, 1), run(3, 0)],
+    lifts: one, sectors: [{ share: 0 }] });
+  const pull = pulls(net, P);
+  assert.ok(near(pull[0] / (pull[0] + pull[1]), 1 / 21));
+});
+
+test("a magic carpet that's the only way up is taken", () => {
+  const net = network({ z: [1600, 1500], links: [{ ...lift(1, 0, 600, 0), nur: 1 }, run(0, 1)],
+    lifts: { 0: { sector: 0 } }, sectors: [{ share: 0 }] });
+  assert.ok(pulls(net, P)[0] > 0);
+});
+
+const walkTo = (zFar) => network({ z: [2300, 1795, 2600, zFar],
+  links: [lift(1, 0, 2500, 0), lift(3, 2, 1500, 1), { a: 1, b: 3, k: "walk", len: 184, rt: 184 }],
+  lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] });
+
+test("a level walk to a nearby lift pulls like that lift: a gondola's bottom splits 3.125 to 1.875", () => {
+  const pull = pulls(walkTo(1790), P);
   assert.equal(pull[0], 3.125);
-  assert.equal(pull[2], 1.875);
+  assert.ok(near(pull[2], 1.875));
 });
 
-test("queues are seen ahead: of two equal blue runs, the one ending at a 10-minute queue takes a third", () => {
-  // Junction 0 offers two blue runs: to junction 1 (a lift with a queue) and junction 2 (a lift with none).
-  const s = { z: [2000, 1500, 1500, 2500],
-    links: [run(0, 1), run(0, 2), lift(1, 3, 2000, 0), lift(2, 3, 2000, 1), run(3, 0)],
-    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
-  const net = network(s);
-  const wait = new Float64Array(s.links.length);
-  wait[2] = 600;
-  const pull = pulls(net, P, wait);
-  assert.ok(Math.abs(pull[0] - 0.5) < 1e-12, "a run that ends at a queue: its pull halves to 0.5");
-  assert.ok(Math.abs(pull[0] / (pull[0] + pull[1]) - 1 / 3) < 1e-12);
+test("a walk that climbs pulls like a near-flat run: 0.35 of the lift it leads to", () => {
+  assert.ok(near(pulls(walkTo(1810), P)[2], 0.35 * 1.875));
 });
 
 test("with no waits, pulls are exactly today's", () => {

@@ -19,6 +19,7 @@ Ideas for the busyness model to come back to, fixes to make in the map data, and
 Pistes and lifts come from OpenStreetMap via OpenSkiMap, so these are fixed there, not in the code.
 
 - **20. The Fréjus gondola at La Salle-les-Alpes isn't in the data** (Serre Chevalier). The yellow Poma eggs, a short walk from the Pontillas gondola, were mainly used in the morning rush. OpenSkiMap has only a beginners' platter and a rope tow under the Fréjus name. Check whether the gondola still runs. If it does, add it to OpenStreetMap: without it, everyone leaving La Salle in the morning is sent up the Pontillas. If it has gone, note it here and remove this item.
+- **Isolée stops short** (Serre Chevalier). In reality it goes down to meet Rocher de l'Enfer, and on to the top of Forêt; in the data it ends with nothing leading on. The model now walks skiers from its end to the nearest lift bottom (a backup for map gaps, [017](decisions/017-day-simulation.md)), but the run should be joined in OpenStreetMap.
 - **6. Mézies is missing from the data.** It crosses Pylônes, along with 3 Croix and Lièvre Blanc, but doesn't appear in OpenSkiMap, so Pylônes's 712 m stretch between 3 Croix and Lièvre Blanc is probably shorter in reality. Check OpenStreetMap. [005](decisions/005-busyness-network.md)
 
 ## Linked domains (issue #1)

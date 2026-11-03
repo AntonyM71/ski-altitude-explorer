@@ -2,11 +2,13 @@
 
 **Status:** Proposed (OpenSpec change `lift-queues`): accepted once the overlay is deployed
 
+> **Since [017](017-day-simulation.md):** a queue is the skiers actually waiting at a lift's bottom in the simulated day, and its wait is the queue ÷ capacity. The day-wait iteration and the rush-wait formula below are replaced. Queues still repel skiers at the lift and ahead, as decided here.
+
 **Code:**
-- [busyness-engine/src/queues.js](../../busyness-engine/src/queues.js): day waits.
+- [busyness-engine/src/simulate.js](../../busyness-engine/src/simulate.js): queues in the simulated day (017; `queues.js` before).
 - [busyness-engine/src/laps.js](../../busyness-engine/src/laps.js) (`pulls`): queues at the lift and ahead.
 - [busyness-engine/src/routing.js](../../busyness-engine/src/routing.js): waits in route times.
-- [busyness-engine/src/views.js](../../busyness-engine/src/views.js) (`rushWaits`, `bands`): rush waits and bands.
+- [busyness-engine/src/views.js](../../busyness-engine/src/views.js) (`bands`): bands (`rushWaits` before 017).
 - [busyness-engine/src/index.js](../../busyness-engine/src/index.js): the loop.
 
 ## Context

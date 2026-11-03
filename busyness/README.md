@@ -1,6 +1,6 @@
 # busyness: the structure half of the busyness model
 
-Prepares each domain's **structure** for the busyness engine in [`busyness-engine/`](../busyness-engine/): the run and lift network, villages and sectors. The engine computes the **behaviour** from it (laps, commuting, the evening rush and the views), in the browser or in Node. Rationale is in [docs/decisions/](../docs/decisions/) 004–012. What the system must do is in [openspec/specs/](../openspec/specs/) (`busyness-*`).
+Prepares each domain's **structure** for the busyness engine in [`busyness-engine/`](../busyness-engine/): the run and lift network, villages and sectors. The engine computes the **behaviour** from it (a simulated day of laps, commuting and going home, and the views), in the browser or in Node. Rationale is in [docs/decisions/](../docs/decisions/) 004–017. What the system must do is in [openspec/specs/](../openspec/specs/) (`busyness-*`).
 
 ## Stages
 

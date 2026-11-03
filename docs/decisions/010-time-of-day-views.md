@@ -2,6 +2,8 @@
 
 **Status:** Proposed (issue #3, prototype)
 
+> **Since [017](017-day-simulation.md):** the three views are windows of one simulated day (09:00–10:30, 11:00–14:30, 15:00–16:30), replacing the 6-hour day (`DAY_HOURS`), the 1.5-hour rushes (`PEAK_HOURS`) and the 40% ramp (`RAMP`).
+
 **Code:** [busyness/](../../busyness/) (structure: network, villages, sectors) and [busyness-engine/](../../busyness-engine/) (behaviour: laps, commuting, views); see [012](012-busyness-production-architecture.md)
 
 ## Context

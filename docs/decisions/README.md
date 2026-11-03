@@ -33,3 +33,4 @@ Each record explains one analytical decision: the problem, what we chose, the ev
 | [014](014-lifts-by-load.md) | Show lifts by modelled load against their own capacity | Proposed |
 | [015](015-lift-queues.md) | Lift queues: waits where lifts are overfull, and skiers who avoid them | Proposed |
 | [016](016-resort-populations.md) | Resort populations: published bed counts as the reference | Open |
+| [017](017-day-simulation.md) | Simulate the day, with every skier conserved | Proposed |

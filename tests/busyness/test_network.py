@@ -84,6 +84,36 @@ def test_green_from_a_lift_station_to_a_nursery_area_is_a_way_through():
     assert {f.id for f in net.feats if f.nursery} == {"carpet"}
 
 
+def test_run_stopping_short_walks_to_the_nearest_lift():
+    # The run ends 300 m from the chair's bottom, with nothing mapped leading on.
+    net = build([lift("chair", (0, 0, 1500), (0, 1000, 2000)), run("short", (0, 1000, 2000), (300, 0, 1500))])
+    (end,) = [e.b for e in links_of(net, "short")]
+    (walk,) = [e for e in net.out_links[end] if e.kind == "walk"]
+    assert walk.b == links_of(net, "chair", "lift")[0].a and round(walk.t) == 300
+
+
+def test_lift_top_with_no_run_walks_to_the_nearest_run_start():
+    # The gondola's top is 400 m from where the run starts.
+    net = build([lift("gondola", (0, 0, 1500), (0, 1000, 2500)), run("run", (400, 1000, 2480), (40, 0, 1500))])
+    (top,) = [e.b for e in links_of(net, "gondola", "lift")]
+    (walk,) = [e for e in net.out_links[top] if e.kind == "walk"]
+    assert walk.b == links_of(net, "run")[0].a and round(walk.t) == 400
+
+
+def test_no_backup_walk_where_a_way_on_exists():
+    net = build([lift("chair", (0, 0, 1500), (0, 1000, 2000)), run("upper", (0, 1000, 2000), (300, 500, 1700)),
+                 run("lower", (300, 500, 1700), (40, 0, 1500))])
+    (mid,) = [e.b for e in links_of(net, "upper")]
+    assert not [e for e in net.out_links[mid] if e.kind == "walk"]
+
+
+def test_run_far_from_any_lift_is_dropped():
+    net = build([lift("chair", (0, 0, 1500), (0, 1000, 2000)), run("home", (0, 1000, 2000), (40, 0, 1500)),
+                 run("far", (0, 1000, 2000), (1500, -1500, 1400))])
+    assert links_of(net, "far") == []
+    assert links_of(net, "home")
+
+
 def test_committed_length_of_a_black():
     # A 1,200 m black with no way out, and a black crossed by a blue 250 m from its top.
     net = build([run("long", (0, 0, 2400), (0, -1200, 1900), grade=3),

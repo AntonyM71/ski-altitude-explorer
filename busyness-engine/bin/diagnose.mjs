@@ -34,8 +34,8 @@ const domains = files.map((f) => {
   s.links.forEach((l, i) => {
     if (l.k === "run") runs.push({ z: (s.z[l.a] + s.z[l.b]) / 2, len: l.len, ...Object.fromEntries(VIEWS.map(([v]) => [v, r.links[v][i]])) });
   });
-  console.log(`${s.domain.name}: ${Math.round(ms)} ms, ${r.passes} passes`);
-  return { label: s.domain.name, lifts, runs, ms, passes: r.passes };
+  console.log(`${s.domain.name}: ${Math.round(ms)} ms, ${r.report.unsettled.length} links unsettled`);
+  return { label: s.domain.name, lifts, runs, ms, report: r.report };
 });
 
 /** Lift bands by view: how many lifts fall in each overlay band. */
@@ -138,11 +138,11 @@ const CSS = `body{margin:0;background:#fcfcfb;color:#0b0b0b;font:14px system-ui,
 p{color:#52514e;margin:0 0 10px;max-width:900px} svg text{fill:#52514e;font-size:11px} svg .lab{fill:#0b0b0b;font-size:12px}
 svg .t{fill:#0b0b0b;font-size:13px;font-weight:600} .key{display:inline-flex;align-items:center;gap:6px;margin-right:14px;font-size:12px}
 .key i{width:12px;height:12px;border-radius:3px;display:inline-block}`;
-const runInfo = domains.map((d) => `${esc(d.label)} ${(d.ms / 1000).toFixed(1)} s (${d.passes} passes)`).join(", ");
+const runInfo = domains.map((d) => `${esc(d.label)} ${(d.ms / 1000).toFixed(1)} s (${Math.round((100 * d.report.noon.queued) / d.report.population)}% queuing at noon)`).join(", ");
 const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Busyness diagnostics</title><style>${CSS}</style></head><body>
 <div class="wrap"><h1>Busyness diagnostics</h1><p>${new Date().toISOString().slice(0, 16).replace("T", " ")}. Engine runs: ${runInfo}. Hover for values.</p>
 <h2>Lift bands by view</h2><p>How many lifts fall in each overlay band.</p>${bandsChart()}
-<h2>Day waits at queued lifts</h2><p>Every lift with a day queue, by its modelled wait. Waits beyond about an hour grow every pass at lifts skiers can't avoid, and aren't real.</p>${waitsChart()}
+<h2>Day waits at queued lifts</h2><p>Every lift with a day queue, by its modelled wait: the skiers waiting ÷ its capacity, averaged over the day window.</p>${waitsChart()}
 <h2>Run traffic by altitude</h2><p>Share of each view's run traffic (skier-metres an hour) in each 100 m band.</p>${altitudeChart()}</div></body></html>`;
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, html);

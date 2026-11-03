@@ -5,7 +5,7 @@
   "name": "fork_and_loop"
  },
  "model_version": 4,
- "fingerprint": "0ac258b8bd1f89cd",
+ "fingerprint": "0ee6eb0cd1149f7f",
  "places": {
   "source": "none",
   "release": null
@@ -102,6 +102,13 @@
    "run": "Home"
   },
   {
+   "a": 3,
+   "b": 5,
+   "k": "walk",
+   "len": 824.6,
+   "rt": 824.63
+  },
+  {
    "a": 0,
    "b": 6,
    "k": "download",
@@ -194,11 +201,11 @@
   "exchange": {
    "0": {
     "0": 0.58765,
-    "4": 0.112103
+    "4": 0.41235
    },
    "4": {
     "0": 0.58765,
-    "4": 0.112103
+    "4": 0.41235
    }
   }
  }

@@ -28,6 +28,7 @@ WALK_S = 30  # time for a walking link
 LIFT_WALK_M = 250  # a lift's top or bottom walks to another lift's bottom this close...
 LIFT_WALK_RISE_M = 30  # ...and within this much height, where no run or walk already leads there
 WALK_SPEED = 1.0  # m/s for those longer walks, in ski boots with skis (at least WALK_S)
+DEAD_END_WALK_M = 1000  # a junction with no way on walks to the nearest lift bottom this close (a backup for map gaps)
 DOWNLOAD_LIFTS = {"gondola", "cable_car", "funicular", "mixed_lift"}  # can be ridden down in the evening
 
 # Capacity and time (004, 009)

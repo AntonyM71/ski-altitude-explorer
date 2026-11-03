@@ -2,6 +2,8 @@
 
 **Status:** Proposed (issue #3, prototype)
 
+> **Since [017](017-day-simulation.md):** skiers no longer start from each lift's top at a fixed share of its capacity. They come off a lift only after riding it. A run now pulls like the lifts it leads to, times the easiest way on, and nursery areas are a last resort. The choice at junctions below still holds.
+
 **Code:** [busyness/](../../busyness/) (structure: network, villages, sectors) and [busyness-engine/](../../busyness-engine/) (behaviour: laps, commuting, views); see [012](012-busyness-production-architecture.md)
 
 ## Context

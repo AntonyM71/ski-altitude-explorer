@@ -1,44 +1,42 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { network } from "../src/graph.js";
-import { linkViews, bands, liftsForSite, rushWaits } from "../src/views.js";
+import { bands, liftsForSite } from "../src/views.js";
 import { checkTraffic, EngineError } from "../src/checks.js";
 import { run } from "../src/index.js";
 import { P, fixture } from "./helpers.js";
 
-const tiny = {
-  z: [2000, 1500],
-  links: [
-    { a: 0, b: 1, k: "run", len: 1000, rt: 200, g: 1, grad: 0.3, run: "r" },
-    { a: 1, b: 0, k: "lift", len: 1000, rt: 400, cap: 2000, lift: 0 },
-    { a: 1, b: 0, k: "lift", len: 1000, rt: 400, cap: 1000, lift: 1 },
-  ],
-  lifts: { 0: { sector: 0 }, 1: { sector: 0 } },
-  sectors: [{ cap: 3000, share: 0.4 }],
-  villages: [{ sector: 0, nodes: [[1, 3000]], cap: 3000, skiers: 900 }],
-};
-const zeros = () => new Float64Array(3);
+const lift = (a, b, cap, key, rt = 400) => ({ a, b, k: "lift", len: 1000, rt, cap, lift: key });
+const run_ = (a, b, rt = 300) => ({ a, b, k: "run", len: 800, rt, g: 1, grad: 0.2, run: `r${a}${b}` });
+// A village at the bottom (1) of a chairlift to the top (0), and a run back down.
+const loop = (skiers, cap) => ({ z: [2000, 1500], links: [lift(1, 0, cap, 0), run_(0, 1)],
+  lifts: { 0: { id: "L", sector: 0 } }, sectors: [{ cap, share: 0 }], runs: { r01: ["Run", 1] },
+  villages: [{ sector: 0, nodes: [[1, cap]], cap, skiers }] });
 
-test("600 commuters out and back over a run add 200 an hour to its day average", () => {
-  const net = network(tiny);
-  const routed = { out: Float64Array.from([600, 0, 0]), back: Float64Array.from([600, 0, 0]), evening: zeros() };
-  const v = linkViews(net, P, { laps: zeros(), liftLaps: new Map(), routed });
-  assert.equal(v.day[0], 200);
+test("a lift with more skiers than it can carry shows demand over 1.0x, its load at capacity and its wait", () => {
+  const l = run(loop(1000, 1200), P).lifts[0];
+  assert.ok(l.demand.morning > 1, `demand ${l.demand.morning}`); // the queue grows through the morning
+  assert.ok(Math.abs(l.day - 1) < 0.01, `load ${l.day}`); // and the lift runs at capacity all day
+  assert.ok(l.wait.day > 60);
 });
 
-test("a village's locals load its lifts in proportion to capacity in the morning", () => {
-  const net = network(tiny);
-  const routed = { out: zeros(), back: zeros(), evening: zeros() };
-  const v = linkViews(net, P, { laps: zeros(), liftLaps: new Map(), routed });
-  const local = (900 * 0.6) / P.PEAK_HOURS;
-  assert.ok(Math.abs(v.morning[1] - (local * 2) / 3) < 1e-9 && Math.abs(v.morning[2] - local / 3) < 1e-9);
+test("a lift with room shows its load and no wait beyond loading", () => {
+  const l = run(loop(100, 2000), P).lifts[0];
+  assert.ok(l.day > 0 && l.day < 0.5, `load ${l.day}`);
+  assert.equal(l.wait.day, 0);
 });
 
-test("a run busy only on the way home ranks higher in the evening than by day", () => {
-  const net = network(tiny);
-  const routed = { out: zeros(), back: zeros(), evening: Float64Array.from([500, 0, 0]) };
-  const v = linkViews(net, P, { laps: Float64Array.from([10, 0, 0]), liftLaps: new Map(), routed });
-  assert.ok(v.evening[0] > 50 * v.day[0]);
+test("reading a wait: a queue of 300 at a 1,800-an-hour lift is 10 minutes", () => {
+  // Everyone arrives in the first minute (ARRIVE_MIN 1), only that minute is the morning window, and the lift boards
+  // 30 of the 330 in it.
+  const r = run(loop(330, 1800), { ...P, ARRIVE_MIN: 1, MORNING_TO_H: 9 + 1 / 60 });
+  assert.ok(Math.abs(r.lifts[0].wait.morning - 600) < 1e-6, `${r.lifts[0].wait.morning} s`);
+});
+
+test("commuters count in the morning and evening views, not the day's", () => {
+  const r = run(fixture("linked_valleys"), P);
+  const most = (arr) => arr.reduce((m, x) => Math.max(m, x), 0);
+  assert.ok(most(r.links.out) > 0 && most(r.links.back) > 0, "commuters cross links in the rushes");
+  assert.ok(most(r.links.commute) < 1e-6, "and none by day");
 });
 
 test("run bands split at the 50th, 80th and 95th percentiles within the domain, whatever its size", () => {
@@ -97,12 +95,4 @@ test("a lift mapped in two pieces shows its most loaded piece", () => {
   const out = liftsForSite(structure, result);
   assert.deepEqual(out.L, { day: [2, 0.9, 0], morning: [3, 1.3, 420], evening: [0, 0.2, 0] });
   assert.deepEqual(out.M.day, [0, 0.3, 0]);
-});
-
-test("a village lift at 1.4x in the morning: its queue averages 18 minutes over the 1.5-hour rush", () => {
-  const net = network({ z: [2000, 1000], links: [{ a: 1, b: 0, k: "lift", len: 1000, rt: 400, cap: 2000, lift: 0 }],
-    lifts: { 0: { sector: 0 } }, sectors: [{ share: 0 }] });
-  const w = rushWaits(net, P, { morning: Float64Array.from([2800]), evening: Float64Array.from([1500]) });
-  assert.equal(w.morning[0], 18 * 60);
-  assert.equal(w.evening[0], 0);
 });

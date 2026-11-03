@@ -195,6 +195,50 @@ def station_walks(net: Network, walks: list[Link]) -> list[Link]:
     return out
 
 
+def dead_end_walks(net: Network, links: list[Link]) -> list[Link]:
+    """A backup for gaps in the map: from each junction with nothing leading on (rides down aside), a walk within
+    DEAD_END_WALK_M: from the end of a run to the nearest lift bottom, from a lift's top to the nearest run start."""
+    ways = defaultdict(int)
+    run_ends, tops, starts = set(), set(), set()
+    for e in links:
+        if e.a != e.b:
+            ways[e.a] += 1
+        if e.kind == "run":
+            run_ends.add(e.b)
+            starts.add(e.a)
+        elif e.kind == "lift":
+            tops.add(e.b)
+    bottoms = {e.a for e in net.lifts}
+    out = []
+    for n in sorted(run_ends | tops):
+        targets = bottoms if n in run_ends else starts - {n}
+        if ways[n] or not targets:
+            continue
+        d, b = min((net.dist(n, b), b) for b in targets)
+        if d <= P.DEAD_END_WALK_M:
+            t = max(P.WALK_S, d / P.WALK_SPEED)
+            out.append(Link(n, b, "walk", None, d, t, t))
+    return out
+
+
+def drop_islands(links: list[Link], lifts: list[Link]) -> list[Link]:
+    """Leave out runs and walks from which no lift bottom can be reached: islands too far from the domain to model."""
+    back = defaultdict(list)
+    for e in links:
+        if e.kind != "download":
+            back[e.b].append(e.a)
+    reach = {e.a for e in lifts}
+    if not reach:
+        return links  # no lifts at all (small test networks): nothing to measure islands against
+    todo = list(reach)
+    while todo:
+        for m in back[todo.pop()]:
+            if m not in reach:
+                reach.add(m)
+                todo.append(m)
+    return [e for e in links if e.kind not in ("run", "walk") or e.b in reach]
+
+
 def build(feats: list[Feature]) -> Network:
     """The network for a domain's features: marks nursery areas, projects to metres, joins and cuts lines, adds walks
     and rides down, and works out each black's committed length."""
@@ -296,10 +340,11 @@ def build(feats: list[Feature]) -> Network:
             if s != lift.a and net.dist(lift.a, s) <= P.LIFT_BOTTOM_M and -30 <= net.z[s] - net.z[lift.a] <= 60:
                 walks.append(Link(s, lift.a, "walk", None, 0, P.WALK_S, P.WALK_S))
     walks += station_walks(net, walks)
+    walks += dead_end_walks(net, net.links + walks)
     # Enclosed lifts can be ridden down on the way home in the evening (never for laps or in the morning).
     downs = [Link(lift.b, lift.a, "download", lift.fi, lift.len, lift.t, lift.route_t)
              for lift in net.all_lifts if feats[lift.fi].type in P.DOWNLOAD_LIFTS]
-    net.links += walks + downs
+    net.links = drop_islands(net.links + walks + downs, net.all_lifts)
     for e in net.links:
         net.out_links[e.a].append(e)
         net.in_links[e.b].append(e)
