@@ -15,7 +15,7 @@ Lapping skiers chose lifts without regard to how full they were. Where more arri
 
 ## Decision
 
-- **Day waits from overload.** Each lift's top still releases its capacity less its sector's commuting share (004). Where more lapping skiers arrive at its bottom, it gets a wait, which grows until arrivals fall to what it releases. A lift with no way round keeps its queue.
+- **Day waits from overload.** Where more lapping skiers arrive at a lift's bottom than its capacity, it gets a wait, which grows until arrivals fall to its capacity. A lift with no way round keeps its queue. Capacity is the same yardstick as the rush queues'. Day commuters, about a fifth of day lift traffic, aren't counted, because they're routed after the laps; they will be once lift tops release only what they carried (conservation, #6).
 - **Queues repel lapping skiers at the lift:** a lift's pull is divided by 1 + its wait beyond loading ÷ 10 minutes (`QUEUE_TOLERANCE_MIN`).
 - **...and ahead of it:** a run's pull is divided by the average queue factor of the lifts its skiers go on to reach. A skier can see Cucumelle's queue from above the Côte Chevalier split, and the model's skiers now can too.
 - **Queues repel commuters:** a lift's route time includes its wait in the view being routed, morning waits going out and evening waits coming home.
@@ -26,9 +26,8 @@ Lapping skiers chose lifts without regard to how full they were. Where more arri
 ## What a wait means, and what it doesn't
 
 - **Rush waits are the model's best estimate of a queue's size:** Saulire about 18 minutes in the morning and 47 in the evening, Tovière 12 in the morning.
-- **Day waits at lifts skiers can't avoid are not real waits.** Where every skier skiing down ends at a lift with no other way on, the wait grows every pass, and its minutes depend only on how many passes ran. Examples: the valley lifts at La Daille, Aravet, Bachas and Pré Chabert. They're shown as they are, not capped, because the project owner preferred a visible weakness to a tidy number. The real causes:
-  - **Known issue 18:** skiers favour higher areas by day, so valley lifts like Aravet and Daille are fairly empty in reality.
-  - **Known issue 19:** Aravet isn't linked to Casse du Bœuf, 400 m away.
+- **Day waits are fewer and shorter than rush waits,** as observed: 4–8 queued lifts per test domain by day, against 4–21 in the morning. The longest by day are Les Antenes (28 minutes, known issue 25), Cime Caron (18), Mont Blanc (14, known issue 24) and Cucumelle (11, within the 20 minutes observed).
+- **Until 2026-11-03, day waits were measured against what a lift's top releases,** its capacity less its sector's commuting share, about 51–57% of capacity across a domain. Laps start from those same releases, so total arrivals always about equalled the total released, and any concentration put about half the lifts over: 32–86 lifts per test domain queued by day (median 13–30 minutes), though at most 2 carried more than their capacity. At valley lifts skiers couldn't avoid, such as La Daille, Aravet, Bachas and Pré Chabert, the wait grew every pass. Measuring against capacity removed these runaway queues.
 - **Not a forecast:** a modelled wait ranks a domain's queues; it doesn't predict the wait on a given day.
 
 ## Alternatives considered
@@ -36,11 +35,10 @@ Lapping skiers chose lifts without regard to how full they were. Where more arri
 - **Full conservation:** a fixed lapping population circulating between lifts, so that quiet lifts run below capacity and queues balance the population by Little's law. Built and tried. Purely lapping skiers drain into groups of lifts they can enter but not leave: one Les Trois Vallées lift reached a 6,000-minute queue while lifts overall carried 8% of capacity. Restarting a share of laps at random helped but didn't converge. It needs time off the hill (known issue 17) and a sourced population (#6) first.
 - **Balking:** skiers who reach a long queue with no way round give up and take a break, so the queue settles at 10 min × (overload − 1). It gave believable waits everywhere, such as Cucumelle at about 8–13 minutes. But the project owner observed that skiers mostly go somewhere else rather than stop, and that the lookahead captures that.
 - **Capping day waits** (for example at 30 minutes): it hides the weakness rather than fixing it. Rejected for the same reason.
-- **Loosening the regressed observation tests:** rejected. They're marked as known failures with the reason, until known issues 18 and 19 are fixed.
+- **Loosening the regressed observation tests:** rejected. They were marked as known failures with the reason until fixed. Three passed again once day waits were measured against capacity.
 
 ## Consequences
 
-- **Four observations open:** Lac de la Chambre, Edelweiss, Pelvoux and Cucumelle in the morning (decision 011). Skiers now steer away from the runaway valley queues and onto other runs, such as Gentiane and Lacets.
-- **Some observations improved:** Plein Sud is fuller in the morning (0.76×), and Pista Llarga is no longer the busiest run.
+- **One observation open:** Cucumelle in the morning (0.87×, 7th; decision 011). Lac de la Chambre, Edelweiss and Pelvoux regressed while day waits were measured against releases, and pass again.
+- **Plein Sud is fuller in the morning** (0.76×). Pista Llarga eased while day queues pushed skiers elsewhere, and is 2nd by day again.
 - **Run time:** Les Trois Vallées takes about 22 s in Node, 16 routing passes of about 1.4 s. The overlay can't ship at that speed; approximating comes once the model is settled.
-- **The day view's lift colours are dominated** by the valley queues until known issues 18 and 19 are fixed.

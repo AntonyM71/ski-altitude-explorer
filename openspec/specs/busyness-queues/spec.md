@@ -1,23 +1,23 @@
 # busyness-queues Specification
 
 ## Purpose
-Make lifts limit the flow of skiers: queues form where more skiers arrive than a lift releases, and lapping skiers and commuters avoid long queues, at the lift and before they reach it. Rationale: decision 015.
+Make lifts limit the flow of skiers: queues form where more skiers arrive than a lift's capacity, and lapping skiers and commuters avoid long queues, at the lift and before they reach it. Rationale: decision 015.
 
 ## Requirements
 
 ### Requirement: Waits from overload
-In the day view, a lift whose lapping arrivals exceed what its top releases (its capacity less its sector's commuting share) SHALL have a wait. The wait SHALL grow until arrivals fall to what the lift releases, or stay wherever skiers have no other way on. A lift whose arrivals don't exceed what it releases SHALL have no wait beyond the fixed loading time (`WAIT_S`).
+In the day view, a lift whose lapping arrivals exceed its capacity SHALL have a wait, the same yardstick as rush waits. The wait SHALL grow until arrivals fall to its capacity, or stay wherever skiers have no other way on. A lift whose arrivals don't exceed its capacity SHALL have no wait beyond the fixed loading time (`WAIT_S`).
 
 #### Scenario: A lift with an alternative beside it
 - **WHEN** skiers at a junction can take either of two lifts, and one is overfull
 - **THEN** its wait grows until enough skiers take the other that it's no longer overfull
 
 #### Scenario: A lift with no alternative
-- **WHEN** the only way on from a junction is a lift, and more skiers arrive than it releases
+- **WHEN** the only way on from a junction is a lift, and more skiers arrive than its capacity
 - **THEN** it keeps a queue
 
 #### Scenario: A lift with room
-- **WHEN** fewer lapping skiers arrive at a lift than it releases
+- **WHEN** fewer lapping skiers arrive at a lift than its capacity, even if more than its top releases
 - **THEN** it has no wait beyond the fixed loading time
 
 ### Requirement: Queues repel lapping skiers

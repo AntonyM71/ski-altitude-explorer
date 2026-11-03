@@ -6,6 +6,7 @@ Each record explains one analytical decision: the problem, what we chose, the ev
 - **Accepted:** built and shipped.
 - **Proposed:** in the busyness model, not yet deployed.
 - **Superseded:** replaced by a later record.
+- **Open:** evidence gathered, approach not yet chosen.
 
 ## Domains and measurement
 
@@ -31,3 +32,4 @@ Each record explains one analytical decision: the problem, what we chose, the ev
 | [013](013-fill-lift-capacity-and-speed.md) | Fill missing lift capacity and speed from seats, names and length | Proposed |
 | [014](014-lifts-by-load.md) | Show lifts by modelled load against their own capacity | Proposed |
 | [015](015-lift-queues.md) | Lift queues: waits where lifts are overfull, and skiers who avoid them | Proposed |
+| [016](016-resort-populations.md) | Resort populations: published bed counts as the reference | Open |

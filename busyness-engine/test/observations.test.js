@@ -45,7 +45,7 @@ test("Les Trois Vallées: the Funitel 3 Vallées is full at the start of the day
   assert.ok(lift("Funitel 3 Vallées").morning >= 1.0);
 });
 
-test("Les Trois Vallées: Lac de la Chambre is busy", { todo: "open since lift queues (015): skiers steer away from runaway valley queues, known issues 18 and 19" }, () => {
+test("Les Trois Vallées: Lac de la Chambre is busy", () => {
   const { named, rank } = results("les-trois-vallees");
   for (const v of named("Lac de la Chambre")) assert.ok(rank("day", v) <= 10, `rank ${rank("day", v)}`);
 });
@@ -65,7 +65,7 @@ test("Tignes–Val d'Isère: Henri, Combe and Lac are busy", () => {
   }
 });
 
-test("Tignes–Val d'Isère: Edelweiss carries Tignes to Val d'Isère traffic", { todo: "open since lift queues (015): skiers steer away from runaway valley queues, known issues 18 and 19" }, () => {
+test("Tignes–Val d'Isère: Edelweiss carries Tignes to Val d'Isère traffic", () => {
   const { named, rank } = results("tignes-val-d-isere");
   const v = named("Edelweiss", 1)[0];
   assert.ok(rank("day", v) <= 10, `rank ${rank("day", v)}`);
@@ -93,13 +93,13 @@ test("Tignes–Val d'Isère: Le Fornet's cable car is adequate for its village",
   assert.ok(lift("Fornet").morning < 1.0);
 });
 
-test("Serre Chevalier: Pelvoux and Traverse are busy", { todo: "open since lift queues (015): skiers steer away from runaway valley queues, known issues 18 and 19" }, () => {
+test("Serre Chevalier: Pelvoux and Traverse are busy", () => {
   const { named, rank } = results("serre-chevalier");
   assert.ok(rank("day", named("Pelvoux", 0)[0]) <= 5);
   assert.ok(rank("day", named("Traverse", 1)[0]) <= 5);
 });
 
-test("Serre Chevalier: Le Monêtier's lifts head over to Cucumelle", { todo: "open since lift queues (015): skiers steer away from runaway valley queues, known issues 18 and 19" }, () => {
+test("Serre Chevalier: Le Monêtier's lifts head over to Cucumelle", { todo: "open since lift queues (015): 0.87× and 7th in the morning since day waits count against capacity; the test wants the top 5" }, () => {
   const { lift, r } = results("serre-chevalier");
   const cucumelle = lift("Cucumelle");
   const ranked = Object.values(r.lifts).filter((l) => !l.nursery).sort((a, b) => b.morning - a.morning);
