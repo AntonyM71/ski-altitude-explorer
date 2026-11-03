@@ -76,6 +76,14 @@ def test_magic_carpet_and_its_slope_are_nursery():
     assert [net.feats[e.fi].id for e in net.lifts] == ["chair"]
 
 
+def test_green_from_a_lift_station_to_a_nursery_area_is_a_way_through():
+    # The green starts at the chair's bottom and ends by the carpet: skiers pass along it to the next lift.
+    net = build([lift("carpet", (0, -160, 1500), (0, -60, 1510), type="magic_carpet"),
+                 lift("chair", (0, 0, 1520), (0, 1000, 2000)), run("through", (10, 0, 1520), (10, -150, 1500), grade=0),
+                 lift("chair2", (30, -170, 1500), (30, -1200, 2000))])
+    assert {f.id for f in net.feats if f.nursery} == {"carpet"}
+
+
 def test_committed_length_of_a_black():
     # A 1,200 m black with no way out, and a black crossed by a blue 250 m from its top.
     net = build([run("long", (0, 0, 2400), (0, -1200, 1900), grade=3),

@@ -43,10 +43,10 @@ As of the fair-weather altitude preference (006) and lift queues (015: queues wh
 | Serre Chevalier | Prorel: some people ride it down, never full | ✓ 344 and 321 an hour riding down (about 15% and 14%) |
 | Serre Chevalier | Going home to Chantemerle, people mostly ride Ratier down or ski Briance; Luc Alphand should be quieter than Briance | ✗ Luc Alphand 10th in the evening (1,386 an hour), Briance 665, Ratier 678 riding down. **Open** (known issue 3). |
 | Serre Chevalier | Pylônes is fine for confident intermediates: greens cross it, so you can bail out at any time | ✓ crossings by greens joined (005); 712 m at most before a way out, so by day it counts partly as a red: 390 an hour. |
-| Grandvalira | The Soldeu gondola is busy in the morning, but not with 20-minute queues | ✓ 0.78× (13th of 45 lifts); the TSD6 Soldeu beside it, a short walk away, is 0.93× |
+| Grandvalira | The Soldeu gondola is busy in the morning, but not with 20-minute queues | ✓ 0.73× (17th of 45 lifts), no queue; the TSD6 Soldeu beside it, a short walk away, is 1.02× with about a minute's queue |
 | Grandvalira | Grau Roig is a thoroughfare, not a village | ✓ excluded (10 buildings in Overture's data) |
 | Grandvalira | Gall de Bosc is busy | Out by design: a beginner area, left to ski school (005). |
-| Grandvalira | Pista Llarga seemed unusually busy | ~ 2nd by day at about 1,630 an hour (1st at 2,030 before lift queues; 11th while day waits were measured against releases, 015). **Open** (known issue 15). |
+| Grandvalira | Pista Llarga seemed unusually busy | ~ 1st by day at about 2,140 an hour since the greens from Les Antenes to Pic Blanc stopped being nursery slopes (005; 2nd at 1,630 before; 1st at 2,030 before lift queues; 11th while day waits were measured against releases, 015). **Open** (known issue 15). |
 
 ## Consequences
 

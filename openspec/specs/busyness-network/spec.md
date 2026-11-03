@@ -73,7 +73,11 @@ Gondolas, cable cars, funiculars and mixed lifts SHALL also have a downhill link
 - **AND** never for the lapping skier
 
 ### Requirement: Nursery areas are links only
-Magic carpets, rope tows and drag lifts shorter than 300 m SHALL be nursery lifts. Green runs shorter than 400 m that end within 100 m of a nursery lift's bottom SHALL be nursery slopes. Nursery lifts and slopes SHALL stay in the network for skiers passing through, but SHALL have no pull for laps and SHALL NOT count as village lifts.
+Magic carpets, rope tows and drag lifts shorter than 300 m SHALL be nursery lifts. Green runs shorter than 400 m that end within 100 m of a nursery lift's bottom SHALL be nursery slopes, unless they start at a junction that is a non-nursery lift's station (a way on between lifts). Nursery lifts and slopes SHALL stay in the network for skiers passing through, but SHALL have no pull for laps and SHALL NOT count as village lifts.
+
+#### Scenario: A short green from a lift's station past a nursery area
+- **WHEN** a short green starts at a chairlift's bottom station and ends beside a magic carpet's bottom
+- **THEN** it isn't a nursery slope, and lapping skiers can take it
 
 #### Scenario: A magic carpet that's the only way up
 - **WHEN** a magic carpet is the only way from one area back up to another

@@ -65,7 +65,8 @@ def _length(ll) -> float:
 
 def mark_nursery(feats: list[Feature]) -> None:
     """Nursery lifts (magic carpets, rope tows, short drags) and the short greens ending at them are for ski school:
-    kept in the network as links people pass through, but with no pull for laps and not counted as village lifts."""
+    kept in the network as links people pass through, but with no pull for laps and not counted as village lifts.
+    (build() then reopens greens that start at another lift's station: ways through, not nursery slopes.)"""
     def lowest(ll):
         return min((ll[0], ll[-1]), key=lambda c: c[2])
 
@@ -274,6 +275,12 @@ def build(feats: list[Feature]) -> Network:
                     a, b = b, a  # uphill
                 t = (f.dur or length / f.speed) + P.WAIT_S
                 net.links.append(Link(a, b, "lift", fi, length, t, t))
+    # A nursery green starting at a real lift's station is a way on between lifts, not a nursery slope (known issue
+    # 25): its top joins the station whatever its mapped distance from the lift's end.
+    stations = {x for e in net.links if e.kind == "lift" and not feats[e.fi].nursery for x in (e.a, e.b)}
+    for e in net.links:
+        if e.kind == "run" and feats[e.fi].nursery and e.a in stations and e.a != e.b:
+            feats[e.fi].nursery = False
     net.z = {n: statistics.mean(p[2] for p in v) for n, v in node_pts.items()}
     net.xy = {n: (statistics.mean(p[0] for p in v), statistics.mean(p[1] for p in v)) for n, v in node_pts.items()}
 
