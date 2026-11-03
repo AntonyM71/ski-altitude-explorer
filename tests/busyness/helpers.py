@@ -2,6 +2,7 @@
 
 import math
 
+from busyness import params as P
 from busyness.partition import Feature
 
 LAT0, LON0 = 45.0, 6.0
@@ -21,4 +22,5 @@ def run(rid, *pts, grade=1):
 
 
 def lift(lid, *pts, type="chair_lift", cap=2000):
-    return Feature("lift", lid, lid, ll(*pts), type=type, cap=cap, cap_known=True)
+    return Feature("lift", lid, lid, ll(*pts), type=type, cap=cap, cap_src="recorded",
+                   speed=P.LIFT_SPEED.get(type, P.DEFAULT_LIFT_SPEED))

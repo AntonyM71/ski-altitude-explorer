@@ -2,6 +2,8 @@
 
 **Status:** Proposed (issue #3, prototype)
 
+> **Since [017](017-day-simulation.md):** skiers no longer start from each lift's top at a fixed share of its capacity. They come off a lift only after riding it. A run now pulls like the lifts it leads to, times the easiest way on, and nursery areas are a last resort. The choice at junctions below still holds.
+
 **Code:** [busyness/](../../busyness/) (structure: network, villages, sectors) and [busyness-engine/](../../busyness-engine/) (behaviour: laps, commuting, views); see [012](012-busyness-production-architecture.md)
 
 ## Context
@@ -13,7 +15,8 @@ Most skiers spend the day lapping lifts near where they are. We need to decide, 
 - **Where skiers come from.** Each lift's riders leave its top: its capacity, less its sector's share of commuters (34–56% in the test domains; see 009). They ski down until a lift takes them.
 - **Nursery areas have no pull.** Lapping skiers never choose a nursery lift or slope (005); those are left to ski school.
 - **How they split.** At each junction they divide in proportion to each option's pull:
-  - **Lifts** pull by capacity ÷ 800 (`LIFT_PULL`), so a 2,000-an-hour chairlift draws as many skiers as 2.5 runs. Skiers mostly take the next lift rather than skiing to the valley floor.
+  - **Lifts** pull by capacity ÷ 800 (`LIFT_PULL`), divided by their queue factor where they have a queue; runs also pull less by the queues at the lifts they lead to ([015](015-lift-queues.md)). Without queues, a 2,000-an-hour chairlift draws as many skiers as 2.5 runs. Skiers mostly take the next lift rather than skiing to the valley floor.
+  - **Higher areas, in fair weather** (OpenSpec change `altitude-preference`). In the day laps, a lift pulls `ALT_RATIO` ^ (h − 0.5) times as much, h being how high its bottom station sits in its domain's range of lift bottoms. A run pulls by the same factor of the lifts it leads to. `ALT_RATIO` = 2: the highest lift bottom pulls twice the lowest. Skiers favour the bowls with better snow, as observed at Aravet and Daille, and queues stop them piling up at the top. It doesn't apply to the rushes or to sectors, and it doesn't cover bad weather, when skiers seek lower, sheltered terrain. Its effect is small until lifts carry only what arrives (conservation, #6): at a ratio of 2, Daille's runaway day queue fell from 1,132 to 847 minutes and Aravet's from 335 to 264, while run traffic by altitude barely moved.
   - **Runs** pull by grade (`GRADE_PULL`): green and blue 1.0, red 0.8, black 0.4, ungraded 0.7.
   - **Short blacks count more like reds.** A black's weight depends on its committed length: how much black you ski from its top before the next way out, which can be an easier run, a lift or a walk. Up to 300 m (`BLACK_SHORT_M`), it counts like a red. From 1,000 m (`BLACK_LONG_M`), it's fully black. In between, it blends from one to the other. The same rule applies to route choice (009).
   - **Steepness** scales a run's pull, using its average gradient over its whole length: under 6% ×0.35, under 10% ×0.7, over 45% ×0.6.

@@ -16,7 +16,7 @@ The project owner also wanted room for live scenarios later, such as bad weather
 
 ## Decision
 
-- **Show it as an overlay on each domain's map, relative within the domain.** Runs and lifts are coloured in four bands: quiet, moderate, busy and busiest, split at the domain's 50th, 80th and 95th percentiles (`BANDS`). There's no comparison between resorts. Lift capacity differs too much between regions (US resorts often have long lift lines with quiet runs below), so the model can only say which routes are relatively busy within one resort.
+- **Show it as an overlay on each domain's map, relative within the domain.** Runs are coloured in four bands: quiet, moderate, busy and busiest, split at the domain's 50th, 80th and 95th percentiles (`BANDS`). Lifts were banded the same way at first, and are now shown by load against their own capacity ([014](014-lifts-by-load.md)). There's no comparison between resorts. Lift capacity differs too much between regions (US resorts often have long lift lines with quiet runs below), so the model can only say which routes are relatively busy within one resort.
 - **Split the model into structure and behaviour.**
   - **Structure,** prepared in Python (`busyness/`): the network, villages and sectors, one structure file per domain (about 60 KB compressed for Les Trois Vallées).
   - **Behaviour,** computed by one JavaScript engine (`busyness-engine/`): laps, commuting, the evening rides down and the views. It runs in a browser worker when the visitor turns the overlay on, and in Node for tests.

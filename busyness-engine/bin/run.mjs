@@ -38,8 +38,12 @@ const lifts = Object.values(r.lifts).filter((l) => !l.nursery);
 if (args.includes("--json")) {
   console.log(JSON.stringify({ domain: s.domain, ms, runs, lifts }));
 } else {
-  console.log(`${s.domain.name}: ${s.z.length} junctions, ${s.links.length} links; computed in ${Math.round(ms)} ms ` +
-    `(${r.passes} routing pass${r.passes > 1 ? "es" : ""})`);
+  const rep = r.report;
+  const pct = (x) => `${Math.round((100 * x) / rep.population)}%`;
+  console.log(`${s.domain.name}: ${s.z.length} junctions, ${s.links.length} links; simulated in ${Math.round(ms)} ms`);
+  console.log(`  ${Math.round(rep.population)} skiers; at noon ${pct(rep.noon.queued)} queuing, ${pct(rep.noon.moving)} riding or ` +
+    `skiing, ${pct(rep.noon.atJunctions)} stuck at junctions; ${(100 * rep.notHome).toFixed(1)}% not home by the evening's end; ` +
+    `${rep.unsettled.length} links unsettled through the day`);
   for (const view of ["day", "morning", "evening"]) {
     console.log(`\n${view}: busiest runs (skiers an hour)`);
     runs.sort((a, b) => b[view] - a[view]).slice(0, top).forEach((x, i) =>
@@ -47,6 +51,7 @@ if (args.includes("--json")) {
     console.log(`${view}: busiest lifts (demand / capacity)`);
     lifts.sort((a, b) => b[view] - a[view]).slice(0, top).forEach((l, i) =>
       console.log(`  ${String(i + 1).padStart(2)}. ${l.name} ${l[view].toFixed(2)}x` +
+        (l.wait[view] >= 30 ? `, queue ${Math.round(l.wait[view] / 60)} min` : "") +
         (view === "evening" && l.down ? ` (${Math.round(l.down)} an hour riding down)` : "")));
   }
 }

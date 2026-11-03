@@ -53,8 +53,8 @@ def pull(net: Network, e: Link, beh: dict) -> float:
         return 0.0
     if e.kind == "lift":
         return net.cap(e) / beh["LIFT_PULL"]
-    if e.kind == "walk":  # as strong as the best run it leads to
-        return max((pull(net, x, beh) for x in net.out_links[e.b] if x.kind == "run"), default=1.0)
+    if e.kind == "walk":  # as strong as the best run or lift it leads to
+        return max((pull(net, x, beh) for x in net.out_links[e.b] if x.kind in ("run", "lift")), default=1.0)
     return by_grade(net, e, beh["GRADE_PULL"], beh) * gradient_pull(net.feats[e.fi].grad, beh["GRADIENT_PULL"])
 
 

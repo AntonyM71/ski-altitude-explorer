@@ -13,6 +13,8 @@ Not skied for a while.
 - **Lac de la Chambre** being busy makes sense.
 - Not convinced that **Ours** should rank where the model puts it against **Sittelle**.
 - **Plan des Mains** is just a place where some lifts start, not a village with its own population.
+- **Croisette** (Les Menuires) is a set of small buckets, there more to move people into the town than for skiing.
+- From **Roc 1**'s top you'd go on to **Roc 2**, and from **Portette** to **Thorens**: both are short hops from one lift to the next.
 - **The Cascades piste** near Val Thorens is mapped only as an area, with no line down it (prompted issue #2).
 
 ## Tignes–Val d'Isère
@@ -26,6 +28,10 @@ Not skied for a while.
 - **Tovière** (Tignes): people like riding it down to get home, as an alternative to the difficult black or a detour into Val Claret.
 - **Prorel** too (Serre Chevalier): a fair number ride it down, but it's "some people", certainly not full lifts with lines. The same is likely true of the others.
 - **Lac / Parc à Moutons** heads down into the top of the Solaise gondola. (In OpenStreetMap it's drawn the other way, from the gondola's top down towards the back side; the Pim and Pam magic carpets carry people back up to the gondola's top.)
+- **La Daille:** the gondola is a short walk from the **Funival** funicular. **Daille** sits fairly empty during the day, as skiers go to the higher areas with better snow.
+- **Le Fornet:** the **Glacier** and **Datcha** chairs aren't heavily queued, as far as the owner remembers. Lots of people ski the big bowls above; not many go all the way down.
+- You'd walk from the bottom of **Tommeuses** to the bottom of **Mont Blanc**, but not from the bottom of Tommeuses up to the top of **Daille**. You can't go down to Tommeuses without passing very close to Mont Blanc.
+- **Seeing queues ahead:** you might see that **Tommeuses** is busy and head up **Mont Blanc** or **Diebold** beforehand.
 - **A trip staying in Tignes:**
   - Day 1: stayed in the Tignes / Val Claret bowl, back to Tignes.
   - Day 2: went to La Daille, skied the routes there, came back via Val Claret.
@@ -39,6 +45,9 @@ Not skied for a while.
 - **Traverse** being busy makes sense.
 - From Le Monêtier, presumably all the lifts head over towards **Cucumelle** to get into the bowl. (Not stayed there.)
 - The **old Pontillas** lift, a standing gondola, didn't usually get busy: it went to a not very useful place, and the modern **Casse du Bœuf** six-seater next to it goes somewhere much more useful. The **new Pontillas** is much better located.
+- **Cucumelle** is a natural bottleneck, but its queue is never more than about 20 minutes. It can be seen from above the **Côte Chevalier** split, so skiers facing a queue there head down to Côte Chevalier, or down to the base and up **Aravet**, rather than wait.
+- **Aravet** is usually pretty quiet during the day: it's easy to get a whole cabin to yourself. It's still the old 4-seat Poma eggs. **Casse du Bœuf**'s bottom is a short walk away, and skiers do go from one to the other.
+- The **Fréjus** gondola at La Salle-les-Alpes, yellow Poma eggs a short walk from the Pontillas, was mainly used in the morning rush. It may since have gone; it isn't in the map data.
 - **Fréjus** is a tiny village with only a few houses, possibly not a ski place at all; it shouldn't count as a ski village.
 - Short black sections such as the **Pylônes** are fine for confident intermediates, who jump down a bit and get back onto the blue or green.
 - **Pylônes** is crossed at several points by **3 Croix**, and also by **Mézies** and **Lièvre Blanc**, so you can bail out at any time if you're not feeling it. That makes it less intimidating than "here is 2 km of black with no other option".
@@ -59,6 +68,9 @@ Not skied for a while.
 - **Nursery slopes and their lifts are for ski school.**
 - **People go home to where they came from.** You don't start in Tignes le Lac and finish in Val d'Isère. The evening is like the morning, except everyone starts on the mountain instead of in their village.
 - **Skiers mostly stick to one side** during the day, and head somewhere or ski all the runs off a lift rather than lapping one run, though people do lap a nice run.
+- **Valley lifts are quiet by day.** Skiers head for the higher areas with better snow and stay in the big bowls, rather than skiing all the way down; valley lifts like Aravet and Daille are busy mainly at the start and end of the day.
+- **Skiers avoid a long queue by going somewhere else,** not by stopping: another lift, a run to a different lift, or down to the base and up another way. Often they decide before they reach it, because they can see it from above.
+- **Short walks between nearby lift stations are normal,** in villages and lift hubs.
 - **Commuting depends on the domain.** In a big domain such as Les Trois Vallées, Tignes–Val d'Isère or Paradiski you might go somewhere else most days. In a small resort you don't make a "mission" to the other side; you just end up there.
 - **Black runs:** confident intermediates don't mind a short black pitch with an easy way out, and a well-skied black can be less chewed up than the red beside it. What makes a black daunting is how long you're committed to it without a way out.
 - **Flat runs** (traverses, cat tracks) are avoided where there's a choice.

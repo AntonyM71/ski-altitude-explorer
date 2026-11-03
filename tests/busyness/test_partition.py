@@ -2,6 +2,7 @@
 
 import json
 
+from busyness import params as P
 from busyness.partition import Domain, eligible, partition
 
 
@@ -15,10 +16,11 @@ def run(fid, areas, coords, difficulty="easy", geom="LineString"):
         "difficulty": difficulty, "skiAreas": areas}, "geometry": {"type": geom, "coordinates": coords}}
 
 
-def lift(fid, areas, coords, status="operating"):
+def lift(fid, areas, coords, status="operating", capacity=2400, occupancy=None):
     return {"type": "Feature", "properties": {
-        "id": fid, "name": fid, "status": status, "liftType": "chair_lift", "capacity": 2400, "duration": None,
-        "places": [], "skiAreas": areas}, "geometry": {"type": "LineString", "coordinates": coords}}
+        "id": fid, "name": fid, "status": status, "liftType": "chair_lift", "capacity": capacity, "duration": None,
+        "occupancy": occupancy, "places": [], "skiAreas": areas},
+        "geometry": {"type": "LineString", "coordinates": coords}}
 
 
 def write(path, feats):
@@ -49,6 +51,16 @@ def test_partition_by_id_with_shared_names(tmp_path):
     assert [f.id for f in out["C"]] == ["r3"]  # same name as A, but only its own run; no closed lift
     run3 = out["C"][0]
     assert run3.kind == "run" and run3.grade == 1 and run3.grad > 0
+
+
+def test_lift_with_seats_and_no_capacity_is_estimated(tmp_path):
+    write(tmp_path / "runs.geojson", [])
+    write(tmp_path / "lifts.geojson", [lift("l1", [area("A", "Valley")], LINE[::-1], capacity=None, occupancy=2),
+                                       lift("l2", [area("A", "Valley")], LINE[::-1])])
+    est, rec = partition({"A": Domain("A", "Valley", 40, 6, ["A"])}, raw=tmp_path)["A"]
+    assert (est.cap, est.cap_src) == (P.CHAIR_CAP[(2, False)], "seats")
+    assert est.speed_src == "seats" and est.dur is None
+    assert (rec.cap, rec.cap_src) == (2400, "recorded")
 
 
 def test_eligible_needs_km_and_lifts():

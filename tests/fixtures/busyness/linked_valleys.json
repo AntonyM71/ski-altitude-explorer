@@ -4,8 +4,8 @@
   "id": "linked_valleys",
   "name": "linked_valleys"
  },
- "model_version": 2,
- "fingerprint": "66dc1cb24985a9ac",
+ "model_version": 4,
+ "fingerprint": "91bbf351e3fecaed",
  "places": {
   "source": "none",
   "release": null
@@ -228,7 +228,8 @@
    "name": "L1a",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 0,
    "day_sectors": {
@@ -240,7 +241,8 @@
    "name": "L1b",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 0,
    "day_sectors": {
@@ -253,7 +255,8 @@
    "name": "L2a",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 1,
    "day_sectors": {
@@ -266,7 +269,8 @@
    "name": "L2b",
    "type": "chair_lift",
    "cap": 2000,
-   "cap_known": true,
+   "cap_src": "recorded",
+   "speed_src": "type",
    "nursery": false,
    "sector": 1,
    "day_sectors": {
