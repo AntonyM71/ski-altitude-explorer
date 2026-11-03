@@ -32,10 +32,11 @@ export function releases(net) {
  * The day's waits from each lift's overload. A visit to a lift (ride, queue, run down) must take about
  * arrivals ÷ release times longer to take only what it releases, so each overfull lift's wait moves halfway towards
  * that, until no wait moves by more than 30 s or QUEUE_PASSES is reached.
- * @param {(net, P, wait: Float64Array) => Float64Array} [pullsWith]  pulls for given waits (default: lifts only)
+ * @param {(net, P, wait: Float64Array) => Float64Array} [pullsWith]  pulls for given waits (default: with the day's
+ *   altitude preference; descent times use base pulls)
  * @returns {{wait: Float64Array, laps: Float64Array, liftLaps: Map<number, number>, pull: Float64Array, passes: number}}
  */
-export function dayWaits(net, P, pullsWith = (n, p, w) => pulls(n, p, w)) {
+export function dayWaits(net, P, pullsWith = (n, p, w) => pulls(n, p, w, { altitude: true })) {
   const { L, lifts } = net;
   const wait = new Float64Array(L.length);
   const release = releases(net);

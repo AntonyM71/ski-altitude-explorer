@@ -23,11 +23,14 @@ export function gradientPull(g, rule) {
 /**
  * Each link's pull at the junction it leaves. A lift with a queue pulls less: its pull is divided by its queue factor,
  * 1 + its wait beyond loading ÷ QUEUE_TOLERANCE_MIN. A run pulls less by the queues of the lifts it leads to, so
- * skiers avoid a run that ends at a long queue before they reach it (busyness-queues).
+ * skiers avoid a run that ends at a long queue before they reach it (busyness-queues). With `altitude`, for the day
+ * laps only: a lift pulls ALT_RATIO ^ (h − 0.5) times as much, h being how high its bottom station sits in the domain's
+ * range of lift bottoms, and a run by the same factor of the lifts it leads to (busyness-laps).
  * @param {Float64Array} [wait]  per link: a lift's wait beyond loading, in seconds
+ * @param {{altitude?: boolean}} [opts]
  * @returns {Float64Array}
  */
-export function pulls(net, P, wait = null) {
+export function pulls(net, P, wait = null, { altitude = false } = {}) {
   const { L, outs } = net;
   const pull = new Float64Array(L.length);
   const queue = (i) => 1 + (wait ? wait[i] : 0) / 60 / P.QUEUE_TOLERANCE_MIN; // a lift's queue factor
@@ -47,6 +50,32 @@ export function pulls(net, P, wait = null) {
     }
   };
   walkPulls();
+  if (altitude) {
+    // Each junction's altitude factor ahead: the pull-weighted average over its ways on, a lift's own or what lies
+    // beyond a run or walk (lowest junction first, as for queues below).
+    const bottoms = net.lifts.map((i) => net.z[L[i].a]);
+    const lo = Math.min(...bottoms);
+    const span = Math.max(...bottoms) - lo || 1;
+    const factor = (i) => P.ALT_RATIO ** ((net.z[L[i].a] - lo) / span - 0.5);
+    const ahead = new Float64Array(net.N).fill(1);
+    const seen = new Uint8Array(net.N);
+    for (let n = net.N - 1; n >= 0; n--) {
+      let total = 0;
+      let sum = 0;
+      for (const i of outs[n]) {
+        if (pull[i] <= 0) continue;
+        total += pull[i];
+        sum += pull[i] * (L[i].k === "lift" ? factor(i) : seen[L[i].b] ? ahead[L[i].b] : 1);
+      }
+      if (total > 0) ahead[n] = sum / total;
+      seen[n] = 1;
+    }
+    L.forEach((l, i) => {
+      if (l.k === "lift" && pull[i] > 0) pull[i] *= factor(i);
+      else if (l.k === "run") pull[i] *= ahead[l.b];
+    });
+    walkPulls();
+  }
   if (wait) {
     // Queues seen ahead: each junction's queue factor is the pull-weighted average over its ways on, a lift's own or
     // what lies beyond a run or walk. Junctions are numbered highest first, so going from the last to the first sees

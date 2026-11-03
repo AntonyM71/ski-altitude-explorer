@@ -80,6 +80,39 @@ test("with no waits, pulls are exactly today's", () => {
   assert.deepEqual(Array.from(pulls(net, P, new Float64Array(s.links.length))), Array.from(pulls(net, P)));
 });
 
+test("skiers favour higher areas by day: of two equal lifts, the one at the highest bottom takes two thirds", () => {
+  // Junction 0 (1,800 m) offers a lift from there and runs to junction 1 (the highest bottom, 2,400) and 2 (the lowest).
+  const s = { z: [2600, 2400, 1200, 3000],
+    links: [lift(1, 3, 2000, 0), lift(2, 3, 2000, 1), run(0, 1), run(0, 2), run(3, 0)],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] };
+  const net = network(s);
+  const pull = pulls(net, P, null, { altitude: true });
+  assert.ok(Math.abs(pull[0] / (pull[0] + pull[1]) - 2 / 3) < 1e-12, "two equal lifts at different heights");
+  assert.ok(Math.abs(pull[2] / (pull[2] + pull[3]) - 2 / 3) < 1e-12, "two runs to lifts at different heights");
+});
+
+test("altitude is relative to the domain: a low resort's highest lift bottom gets the highest factor", () => {
+  const make = (lo, hi) => network({ z: [hi + 200, hi, lo, hi + 400],
+    links: [lift(1, 3, 2000, 0), lift(2, 3, 2000, 1), run(0, 1), run(0, 2), run(3, 0)],
+    lifts: { 0: { sector: 0 }, 1: { sector: 0 } }, sectors: [{ share: 0 }] });
+  const low = pulls(make(600, 1200), P, null, { altitude: true });
+  const high = pulls(make(1800, 3000), P, null, { altitude: true });
+  assert.deepEqual(Array.from(low), Array.from(high));
+});
+
+test("without the altitude option, pulls are unchanged", () => {
+  const s = fixture("fork_and_loop");
+  const net = network(s);
+  assert.deepEqual(Array.from(pulls(net, P, null, {})), Array.from(pulls(net, P)));
+});
+
+test("sectors are unchanged: exchange shares ignore the altitude preference", () => {
+  const s = fixture("two_valleys");
+  const net = network(s);
+  const key = net.L[net.lifts[0]].lift;
+  assert.deepEqual([...exchange(net, P, key)], [...exchange(net, { ...P, ALT_RATIO: 4 }, key)]);
+});
+
 test("near-flat runs pull 0.35 of a normal run; very steep 0.6", () => {
   assert.equal(gradientPull(0.03, P.GRADIENT_PULL), 0.35);
   assert.equal(gradientPull(0.08, P.GRADIENT_PULL), 0.7);
